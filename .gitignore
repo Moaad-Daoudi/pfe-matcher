@@ -1,0 +1,39 @@
+# --- Operating System Files ---
+.DS_Store
+Thumbs.db
+
+# --- Root IDE / Editor Configurations ---
+.idea/
+.vscode/
+.metadata/
+*.iml
+*.ipr
+*.iws
+
+# --- Environment Variables (Secret files) ---
+# It is best practice to ignore these at the root so they never get committed
+.env
+.env.local
+.env.*.local
+
+# --- Build / Dist folders (if they ever appear at the root) ---
+dist/
+out/
+temp/
+logs/
+
+# --- Temporary files ---
+*.log
+*.tmp
+
+# --- Global Java / Maven ---
+**/target/
+*.class
+*.jar
+*.war
+
+# --- Global Node.js / Frontend ---
+**/node_modules/
+**/coverage/
+npm-debug.log*
+yarn-error.log*
