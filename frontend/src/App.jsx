@@ -3,6 +3,7 @@ import axios from 'axios';
 import './App.css';
 
 function App() {
+  const API_BASE = "http://localhost:8080/pfe-matcher";
   const [profFile, setProfFile] = useState(null);
   const [studentFiles, setStudentFiles] = useState({ GI: null, ID: null, TDIA: null });
   
@@ -11,6 +12,12 @@ function App() {
   const [violations, setViolations] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [planningLoading, setPlanningLoading] = useState(false);
+  const [planningResult, setPlanningResult] = useState(null);
+  const [planningStartDate, setPlanningStartDate] = useState("2025-06-23");
+  const [planningEndDate, setPlanningEndDate] = useState("2025-06-24");
+  const [planningDuration, setPlanningDuration] = useState(60);
+  const [planningSalles, setPlanningSalles] = useState("S4A,S5A,S16A,S17A,AMPHI A");
 
   const handleFileChange = (e, field) => {
     setStudentFiles({ ...studentFiles, [field]: e.target.files[0] });
@@ -19,7 +26,7 @@ function App() {
   const handleFinish = async () => {
     setLoading(true);
     try {
-      await axios.post("http://localhost:8080/api/affectations/clear");
+      await axios.post(`${API_BASE}/api/affectations/clear`);
       
       const filesToProcess = Object.entries(studentFiles).filter(([_, file]) => file !== null);
       let allAssignments = [];
@@ -33,7 +40,7 @@ function App() {
         formData.append("field", field);
 
         // This matches your new AssignmentResultDTO structure
-        const response = await axios.post("http://localhost:8080/api/affectations/process", formData);
+        const response = await axios.post(`${API_BASE}/api/affectations/process`, formData);
         
         allAssignments = response.data.assignments; // From DTO
         finalViolations = response.data.violations; // From DTO
@@ -50,6 +57,36 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGeneratePlanning = async () => {
+    setPlanningLoading(true);
+    try {
+      const salles = planningSalles
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      const payload = {
+        startDate: planningStartDate,
+        endDate: planningEndDate,
+        durationMinutes: Number(planningDuration),
+        salles
+      };
+
+      const response = await axios.post(`${API_BASE}/api/soutenances/generate`, payload);
+      setPlanningResult(response.data);
+    } catch (err) {
+      console.error(err);
+      alert("Planning Error: " + (err.response?.data?.message || err.message));
+    } finally {
+      setPlanningLoading(false);
+    }
+  };
+
+  const openPlanningPdf = () => {
+    if (!planningResult?.pdfFileName) return;
+    window.open(`${API_BASE}/api/soutenances/view/${planningResult.pdfFileName}`, "_blank");
   };
 
   return (
@@ -94,7 +131,7 @@ function App() {
       {results.length > 0 && (
         <div style={{ marginTop: '30px' }}>
           <h3>Results</h3>
-          <button onClick={() => window.open("http://localhost:8080/api/affectations/view/affectation_final.pdf", "_blank")}>
+          <button onClick={() => window.open(`${API_BASE}/api/affectations/view/affectation_final.pdf`, "_blank")}>
             View PDF
           </button>
           
@@ -110,6 +147,71 @@ function App() {
               ))}
             </tbody>
           </table>
+
+          <div style={{ marginTop: "20px", border: "1px solid #ccc", padding: "12px" }}>
+            <h3>Planning des soutenances</h3>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+              <label>
+                Start Date:
+                <input
+                  type="date"
+                  value={planningStartDate}
+                  onChange={(e) => setPlanningStartDate(e.target.value)}
+                  style={{ marginLeft: "6px" }}
+                />
+              </label>
+              <label>
+                End Date:
+                <input
+                  type="date"
+                  value={planningEndDate}
+                  onChange={(e) => setPlanningEndDate(e.target.value)}
+                  style={{ marginLeft: "6px" }}
+                />
+              </label>
+              <label>
+                Duration (min):
+                <input
+                  type="number"
+                  min="30"
+                  step="30"
+                  value={planningDuration}
+                  onChange={(e) => setPlanningDuration(e.target.value)}
+                  style={{ marginLeft: "6px", width: "80px" }}
+                />
+              </label>
+            </div>
+
+            <div style={{ marginTop: "10px" }}>
+              <label>
+                Salles (comma separated):
+                <input
+                  type="text"
+                  value={planningSalles}
+                  onChange={(e) => setPlanningSalles(e.target.value)}
+                  style={{ marginLeft: "6px", width: "100%" }}
+                />
+              </label>
+            </div>
+
+            <div style={{ marginTop: "10px", display: "flex", gap: "10px" }}>
+              <button onClick={handleGeneratePlanning} disabled={planningLoading}>
+                {planningLoading ? "Generating..." : "Generate Planning"}
+              </button>
+              <button onClick={openPlanningPdf} disabled={!planningResult?.pdfFileName}>
+                View Planning PDF
+              </button>
+            </div>
+
+            {planningResult?.violations?.length > 0 && (
+              <div style={{ marginTop: "10px", color: "red" }}>
+                <strong>Planning Violations:</strong>
+                <ul>
+                  {planningResult.violations.map((v, i) => <li key={i}>{v}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

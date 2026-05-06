@@ -63,6 +63,7 @@ public class AffectationController {
             // Read Files
             List<Student> students = readerService.readStudent(field, studentFile);
             List<Professor> professors = readerService.readProfessors(profFile);
+            assignmentDAO.saveJuryProfessors(professors);
 
             // Perform Matching
             Collections.shuffle(professors);
