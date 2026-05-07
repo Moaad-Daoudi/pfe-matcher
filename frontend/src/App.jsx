@@ -19,6 +19,9 @@ function App() {
   const [planningDuration, setPlanningDuration] = useState(60);
   const [planningSalles, setPlanningSalles] = useState("S4A,S5A,S16A,S17A,AMPHI A");
 
+  const [pvFile, setPvFile] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState("");
+
   const handleFileChange = (e, field) => {
     setStudentFiles({ ...studentFiles, [field]: e.target.files[0] });
   };
@@ -87,6 +90,28 @@ function App() {
   const openPlanningPdf = () => {
     if (!planningResult?.pdfFileName) return;
     window.open(`${API_BASE}/api/soutenances/view/${planningResult.pdfFileName}`, "_blank");
+  };
+
+  const handlePvUpload = async () => {
+    if (!pvFile) {
+      alert("Please select a file first");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", pvFile);
+
+    try {
+      setUploadStatus("Uploading and generating...");
+      // This calls the Spring Controller method we created earlier
+      const response = await axios.post(`${API_BASE}/api/pv/generate`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setUploadStatus("Success: " + response.data);
+    } catch (err) {
+      console.error(err);
+      setUploadStatus("Error: " + err.message);
+    }
   };
 
   return (
@@ -214,6 +239,16 @@ function App() {
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: '30px', border: '1px solid #ccc', padding: '15px' }}>
+        <h3>Générateur de PV</h3>
+        <input 
+          type="file" 
+          onChange={(e) => setPvFile(e.target.files[0])} 
+        />
+        <button onClick={handlePvUpload}>Uploader et Générer PV</button>
+        {uploadStatus && <p>{uploadStatus}</p>}
+      </div>
     </div>
   );
 }
