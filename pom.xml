@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>ma.ensah</groupId>
+  <artifactId>pfeproject</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>war</packaging>
+
+  <name>pfeproject Maven Webapp</name>
+  <!-- FIXME change it to the project's website -->
+  <url>http://www.example.com</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.1</version>
+      <scope>test</scope>
+    </dependency>
+    
+    <!-- Optionnel : Servlet & JSP API (fourni par Tomcat, scope provided) -->
+	<dependency>
+	  <groupId>javax.servlet</groupId>
+	  <artifactId>javax.servlet-api</artifactId>
+	  <version>4.0.1</version>
+	  <scope>provided</scope>
+	</dependency>
+	
+	<dependency>
+	  <groupId>javax.servlet.jsp</groupId>
+	  <artifactId>javax.servlet.jsp-api</artifactId>
+	  <version>2.3.3</version>
+	  <scope>provided</scope>
+	</dependency>
+	
+	<!-- La dépendance (Tabula-Java) utile pour d'extraire ou lire des données d'un tableau qui se trouve déjà à l'intérieur d'un PDF -->
+	<dependency>
+		<groupId>technology.tabula</groupId>
+		<artifactId>tabula</artifactId>
+		<version>1.0.5</version>
+	</dependency>
+	<!-- Aspose PDF for Java -->
+    <dependency>
+		<groupId>com.aspose</groupId>
+		<artifactId>aspose-pdf</artifactId>
+		<version>26.4</version>
+	</dependency>
+	
+	<!-- Pour les fichiers et generees des fichiers excel et word (XSSF) -->
+	<dependency>
+	    <groupId>org.apache.poi</groupId>
+	    <artifactId>poi</artifactId> <!-- pour .xls et .doc -->
+	    <version>5.2.5</version>
+	</dependency>
+
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId> <!-- pour .xlsx et docx -->
+        <version>5.2.5</version>
+    </dependency>
+ 
+    <!-- Log4j (requis par POI) -->
+    <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>2.20.0</version>
+    </dependency>
+  </dependencies>
+
+  <repositories>
+    <repository>
+        <id>AsposeJavaAPI</id>
+        <name>Aspose Java API</name>
+        <url>https://releases.aspose.com/java/repo/</url>
+    </repository>
+  </repositories>
+  
+
+  <build>
+    <finalName>pfeproject</finalName>
+  </build>
+</project>
