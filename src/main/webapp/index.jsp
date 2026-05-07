@@ -4,9 +4,15 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Insert title here</title>
+<title>Extraction des donnees</title>
 </head>
 <body>
-    <div>${success}</div>
+    <div>${success}</div><br>
+    <form action="controller" method="post" enctype="multipart/form-data">
+    	<input type="hidden" name="action" value="pv">
+    	<label for="file">Entrer un fichier PDF</label>
+    	<input type="file" name="file"><br>
+    	<input type="submit" value="Uploader">
+    </form>
 </body>
 </html>

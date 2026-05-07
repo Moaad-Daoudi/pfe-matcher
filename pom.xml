@@ -44,10 +44,10 @@
 	
 	<!-- La dépendance (Tabula-Java) utile pour d'extraire ou lire des données d'un tableau qui se trouve déjà à l'intérieur d'un PDF -->
 	<dependency>
-		<groupId>technology.tabula</groupId>
-		<artifactId>tabula</artifactId>
-		<version>1.0.5</version>
-	</dependency>
+        <groupId>technology.tabula</groupId>
+        <artifactId>tabula</artifactId>
+        <version>1.0.5</version>
+    </dependency>
 	<!-- Aspose PDF for Java -->
     <dependency>
 		<groupId>com.aspose</groupId>

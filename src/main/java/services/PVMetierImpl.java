@@ -9,16 +9,24 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import technology.tabula.ObjectExtractor;
+import technology.tabula.Page;
+import technology.tabula.RectangularTextContainer;
+import technology.tabula.Table;
+import technology.tabula.extractors.SpreadsheetExtractionAlgorithm;
 
 import com.aspose.pdf.*;
 import com.aspose.pdf.internal.imaging.internal.Exceptions.IO.IOException;
@@ -57,12 +65,12 @@ public class PVMetierImpl implements PVMetier {
 	}
 
 	@Override
-	public void PDFTableExtractor(String chemin) throws IOException, FileNotFoundException, java.io.IOException {
+	public void PDFTableExtractor(String chemin, String fileNamePDF) throws IOException, FileNotFoundException, java.io.IOException {
 
-		String cheminPdf = chemin + File.separator + "Planning des soutenances PFE.pdf";
-		String cheminExcel = chemin + File.separator + "Planning des soutenances PFE.xlsx";
+		String cheminPdf = chemin + File.separator + fileNamePDF;
+		String cheminExcel = chemin + File.separator + fileNamePDF + ".xlsx";
 
-		pdfToExcel(cheminPdf, cheminExcel);
+		pdfToExcelWithTabula(cheminPdf, cheminExcel);
 
 		lireFichier(cheminExcel);
 		
@@ -162,28 +170,78 @@ public class PVMetierImpl implements PVMetier {
         }
     }
 
-	private void pdfToExcel(String cheminPdf, String cheminExcel) {
+    private void pdfToExcelWithTabula(String cheminPdf, String cheminExcel) {
+    	// Créer le document Excel
+        try (Workbook workbook = new XSSFWorkbook(); 
+             PDDocument pdfDocument = PDDocument.load(new File(cheminPdf))) {
 
-		try {
-			// 1. Charger le document PDF
-			Document pdfDocument = new Document(cheminPdf);
+            Sheet sheet = workbook.createSheet("Planning PFE");
+            int numeroLigneExcel = 0;
 
-			// 2. Instancier les options de sauvegarde Excel
-			ExcelSaveOptions excelOptions = new ExcelSaveOptions();
+            // Instancier l'extracteur Tabula
+            ObjectExtractor extracteur = new ObjectExtractor(pdfDocument);
+            
+            // L'algorithme "Spreadsheet" est parfait pour les tableaux avec des lignes bien tracées
+            SpreadsheetExtractionAlgorithm algorithmeExtraction = new SpreadsheetExtractionAlgorithm();
 
-			// 3. Minimiser le nombre de feuilles de calcul dans l'Excel
-			excelOptions.setMinimizeTheNumberOfWorksheets(true);
+            // Parcourir toutes les pages du PDF (de la page 1 jusqu'à la fin)
+            for (int p = 1; p <= pdfDocument.getNumberOfPages(); p++) {
+                Page page = extracteur.extract(p);
+                
+                // Extraire les tableaux de la page
+                List<Table> tableaux = algorithmeExtraction.extract(page);
 
-			// 4. Enregistrer le résultat au format Excel
-			pdfDocument.save(cheminExcel, SaveFormat.Excel);
+                for (Table tableau : tableaux) {
+                    for (List<RectangularTextContainer> lignePdf : tableau.getRows()) {
+                        Row ligneExcel = sheet.createRow(numeroLigneExcel++);
+                        
+                        int numeroColonneExcel = 0;
+                        for (RectangularTextContainer cellulePdf : lignePdf) {
+                            Cell celluleExcel = ligneExcel.createCell(numeroColonneExcel++);
+                            // Nettoyer le texte (les retours à la ligne dans le PDF)
+                            String texte = cellulePdf.getText().replace("\r", " ").replace("\n", " ");
+                            celluleExcel.setCellValue(texte);
+                        }
+                    }
+                }
+            }
 
-			pdfDocument.close();
+            // Sauvegarder le fichier Excel
+            try (FileOutputStream fileOut = new FileOutputStream(cheminExcel)) {
+                workbook.write(fileOut);
+            }
 
-		} catch (Exception e) {
-			System.err.println("Erreur lors de la conversion : " + e.getMessage());
-			e.printStackTrace();
-		}
-	}
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la conversion : " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+//	private void pdfToExcel(String cheminPdf, String cheminExcel) {
+//
+//		try {
+//			// 1. Charger le document PDF
+//			Document pdfDocument = new Document(cheminPdf);
+//
+//			// 2. Instancier les options de sauvegarde Excel
+//			ExcelSaveOptions excelOptions = new ExcelSaveOptions();
+//
+//			// 3. Minimiser le nombre de feuilles de calcul dans l'Excel
+//			excelOptions.setMinimizeTheNumberOfWorksheets(true);
+//
+//			// (Optionnel) Spécifier explicitement le format XLSX
+//		    excelOptions.setFormat(ExcelSaveOptions.ExcelFormat.XLSX);
+//
+//		    // 4. Enregistrer le résultat au format Excel
+//		    pdfDocument.save(cheminExcel, excelOptions);
+//
+//			pdfDocument.close();
+//
+//		} catch (Exception e) {
+//			System.err.println("Erreur lors de la conversion : " + e.getMessage());
+//			e.printStackTrace();
+//		}
+//	}
 
 	/**
 	 * Lit toutes les feuilles du classeur et retourne la liste des soutenances.
