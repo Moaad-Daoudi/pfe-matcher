@@ -37,33 +37,31 @@ public class MatchingEngineServiceImpl implements MatchingEngineService {
             throw new RuntimeException("No professors found in valid departments (Informatique/Mathématique)");
         }
 
-        // Shuffle students to ensure RANDOM assignment every time
+        int dynamicMax = (int) Math.ceil((double) students.size() / validProfessors.size()) + 1;
+        validProfessors.forEach(p -> p.setMaxCapacity(dynamicMax));
+        logger.info("Dynamic Capacity Calculated: {} students / {} profs = Max {} per prof",
+                students.size(), validProfessors.size(), dynamicMax);
+
         List<Student> shuffled = new ArrayList<>(students);
         Collections.shuffle(shuffled);
 
-        // Get current state from DAO
         Map<String, Integer> totalLoad = new HashMap<>(storageDAO.getProfessorLoads());
         List<Assignment> newAssignments = new ArrayList<>();
 
         for (Student student : shuffled) {
-            // Find professor with lowest current load who is below their maxCapacity (5)
+            // Find professor with lowest load that is under their NEW dynamicMax
             Professor chosen = validProfessors.stream()
                     .filter(p -> totalLoad.getOrDefault(p.getLastname(), 0) < p.getMaxCapacity())
                     .min(Comparator.comparingInt(p -> totalLoad.getOrDefault(p.getLastname(), 0)))
-                    .orElseThrow(() -> new RuntimeException("All valid professors at full capacity"));
+                    .orElseThrow(() -> new RuntimeException("All professors reached calculated capacity"));
 
-            // Update tracking
             String profKey = chosen.getLastname();
             totalLoad.put(profKey, totalLoad.getOrDefault(profKey, 0) + 1);
-
-            logger.info("✅ ASSIGNED: {} ({}) -> Prof. {} (Current Load: {}/{})",
-                    student.getLastname(), student.getField(), profKey,
-                    totalLoad.get(profKey), chosen.getMaxCapacity());
 
             newAssignments.add(new Assignment(UUID.randomUUID().toString(), student, chosen));
         }
 
-        storageDAO.saveAll(newAssignments); // Now appends to the list
+        storageDAO.saveAll(newAssignments);
         return newAssignments;
     }
 }

@@ -1,40 +1,41 @@
-# --- Operating System Files ---
-.DS_Store
-Thumbs.db
-
-# --- Root IDE / Editor Configurations ---
+# --- IDE / Editor Settings ---
 .idea/
-.vscode/
-.metadata/
-.smarttomcat/
 *.iml
 *.ipr
 *.iws
+.vscode/
+.settings/
+.classpath
+.project
 
-# --- Environment Variables (Secret files) ---
-# It is best practice to ignore these at the root so they never get committed
-.env
-.env.local
-.env.*.local
-
-# --- Build / Dist folders (if they ever appear at the root) ---
+# --- Build & Runtime Directories ---
+target/
+build/
 dist/
-out/
+node_modules/
+.mvn/
+.SmartTomcat/
+work/
 temp/
-logs/
 
-# --- Temporary files ---
+# --- Operating System Files ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- Generated Files & Uploads (Crucial for your app) ---
+# Ignore the folders where your app generates PDFs and Word docs
+/pdfs/
+/upload/
 *.log
 *.tmp
+*.bak
 
-# --- Global Java / Maven ---
-**/target/
-*.class
-*.jar
-*.war
-
-# --- Global Node.js / Frontend ---
-**/node_modules/
-**/coverage/
-npm-debug.log*
-yarn-error.log*
+# --- Environment Variables ---
+# Never commit secrets or local config
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

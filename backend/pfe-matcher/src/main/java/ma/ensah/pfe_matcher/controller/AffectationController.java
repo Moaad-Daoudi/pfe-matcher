@@ -56,12 +56,13 @@ public class AffectationController {
     @PostMapping("/process")
     public ResponseEntity<AssignmentResult> processAffectation(
             @RequestParam("studentFile") MultipartFile studentFile,
-            @RequestParam("profFile") MultipartFile profFile,
-            @RequestParam("field") String field) {
+            @RequestParam("profFile") MultipartFile profFile) {
+
+        assignmentDAO.clear();
 
         try {
             // Read Files
-            List<Student> students = readerService.readStudent(field, studentFile);
+            List<Student> students = readerService.readStudent(studentFile);
             List<Professor> professors = readerService.readProfessors(profFile);
             assignmentDAO.saveJuryProfessors(professors);
 

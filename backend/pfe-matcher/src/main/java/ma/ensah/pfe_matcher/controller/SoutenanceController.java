@@ -4,6 +4,7 @@ import jakarta.servlet.ServletContext;
 import ma.ensah.pfe_matcher.model.PlanningRequest;
 import ma.ensah.pfe_matcher.model.PlanningResult;
 import ma.ensah.pfe_matcher.model.Soutenance;
+import ma.ensah.pfe_matcher.service.PVMetier; // Import PVMetier
 import ma.ensah.pfe_matcher.service.PlanningGenerationService;
 import ma.ensah.pfe_matcher.service.PlanningPdfExportService;
 import ma.ensah.pfe_matcher.service.PlanningValidationService;
@@ -37,6 +38,9 @@ public class SoutenanceController {
     private PlanningPdfExportService planningPdfExportService;
 
     @Autowired
+    private PVMetier pvService; // New Dependency
+
+    @Autowired
     private ServletContext servletContext;
 
     @PostMapping("/generate")
@@ -48,9 +52,12 @@ public class SoutenanceController {
             String fileName = "planning_soutenances.pdf";
             planningPdfExportService.generatePlanningPdf(soutenances, fileName);
 
+            // --- AUTOMATIC PV GENERATION ---
+            pvService.generatePVsFromSoutenances(soutenances, servletContext.getRealPath("/"));
+
             Map<String, Object> stats = planningGenerationService.buildStats(soutenances, violations);
 
-            logger.info("Planning generated. Soutenances: {}. Violations: {}", soutenances.size(), violations.size());
+            logger.info("Planning generated and PVs created. Soutenances: {}", soutenances.size());
 
             return ResponseEntity.ok(new PlanningResult(soutenances, violations, stats, fileName));
         } catch (IllegalArgumentException e) {
@@ -61,7 +68,7 @@ public class SoutenanceController {
         } catch (Exception e) {
             logger.error("Failed to generate planning", e);
             Map<String, String> error = new HashMap<>();
-            error.put("message", "Internal error while generating planning.");
+            error.put("message", "Internal error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
     }
@@ -70,12 +77,7 @@ public class SoutenanceController {
     public ResponseEntity<FileSystemResource> viewPlanningPdf(@PathVariable("fileName") String fileName) {
         String folder = servletContext.getRealPath("/pdfs/");
         File file = new File(folder + File.separator + fileName);
-
-        if (!file.exists()) {
-            logger.error("Planning PDF not found: {}", file.getAbsolutePath());
-            return ResponseEntity.notFound().build();
-        }
-
+        if (!file.exists()) return ResponseEntity.notFound().build();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
                 .contentType(MediaType.APPLICATION_PDF)

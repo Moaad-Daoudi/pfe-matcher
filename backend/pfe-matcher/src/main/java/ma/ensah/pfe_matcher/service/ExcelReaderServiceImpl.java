@@ -16,7 +16,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
     private static final Logger logger = LoggerFactory.getLogger(ExcelReaderServiceImpl.class);
 
     @Override
-    public List<Student> readStudent(String field, MultipartFile file) throws Exception {
+    public List<Student> readStudent(MultipartFile file) throws Exception {
         List<Student> students = new ArrayList<>();
         DataFormatter formatter = new DataFormatter();
 
@@ -29,6 +29,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
                 // Read CNE
                 String cne = formatter.formatCellValue(row.getCell(0)).trim();
                 String nom = formatter.formatCellValue(row.getCell(1)).trim();
+                String field = formatter.formatCellValue(row.getCell(5)).trim();
 
                 // HEADER DETECTION: If row starts with "CNE" or "Nom", it's a header, SKIP IT
                 if (cne.equalsIgnoreCase("CNE") || cne.equalsIgnoreCase("id") || nom.equalsIgnoreCase("NOM")) {
@@ -44,7 +45,6 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
                 students.add(new Student(cne, cne, lastname, firstname, field));
             }
         }
-        logger.info("Total students parsed from {} for field {}: {}", file.getOriginalFilename(), field, students.size());
         return students;
     }
 
@@ -76,7 +76,7 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
                 if (dept.isEmpty()) dept = "Informatique";
 
                 String id = "PROF" + count++;
-                professors.add(new Professor(id, lastname, firstname, dept, 5, 0));
+                professors.add(new Professor(id, lastname, firstname, dept, 0, 0));
             }
         }
         return professors;

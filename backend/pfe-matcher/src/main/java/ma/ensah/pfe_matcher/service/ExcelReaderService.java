@@ -6,6 +6,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface ExcelReaderService {
-    List<Student> readStudent(String field, MultipartFile file) throws Exception;
+    List<Student> readStudent(MultipartFile file) throws Exception;
     List<Professor> readProfessors(MultipartFile file) throws Exception;
 }
