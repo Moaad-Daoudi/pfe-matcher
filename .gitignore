@@ -26,15 +26,16 @@ desktop.ini
 
 # --- Generated Files & Uploads (Crucial for your app) ---
 # Ignore the folders where your app generates PDFs and Word docs
-/pdfs/
-/upload/*
-*.log
-*.tmp
-*.bak
+**/pdfs/
+**/upload/
+**/target/
+**/*.log
+**/*.tmp
+**/*.bak
 
 # --- Environment Variables ---
 # Never commit secrets or local config
-.env
+.env*
 .env.local
 .env.development.local
 .env.test.local
