@@ -27,7 +27,7 @@ desktop.ini
 # --- Generated Files & Uploads (Crucial for your app) ---
 # Ignore the folders where your app generates PDFs and Word docs
 /pdfs/
-/upload/
+/upload/*
 *.log
 *.tmp
 *.bak
