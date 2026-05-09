@@ -44,7 +44,7 @@ function Home() {
       const planningRes = await axios.post(`${API_BASE}/api/soutenances/generate`, planningPayload);
 
       // 3. Navigate to Dashboard with Data
-      navigate("/dashbord", { 
+      navigate("/pages2", { 
         state: { 
           affectation: affectationRes.data, 
           planning: planningRes.data 

@@ -2,6 +2,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "../App.css";
 import { useLocation, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { useEffect, useState } from "react";
 
 type ImportState = {
   file1?: File | null;
@@ -10,9 +11,92 @@ type ImportState = {
   endDate?: string;
 };
 
+type Student = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type Professor = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type Assignment = {
+  id: string;
+  student: Student;
+  professor: Professor;
+};
+
 function Pages2() {
   const { state } = useLocation();
   const { file1, file2, startDate, endDate } = (state ?? {}) as ImportState;
+  
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [pdfs, setPdfs] = useState<string[]>([]);
+  const [pvsByProf, setPvsByProf] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [expandedProf, setExpandedProf] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      // Fetch assignments
+      const assignRes = await fetch("http://localhost:8080/pfe-matcher/api/affectations/all");
+      if (assignRes.ok) {
+        setAssignments(await assignRes.json());
+      }
+
+      // Fetch PDFs
+      const pdfRes = await fetch("http://localhost:8080/pfe-matcher/api/affectations/list-pdfs");
+      if (pdfRes.ok) {
+        setPdfs(await pdfRes.json());
+      }
+
+      // Fetch PVs
+      const pvsRes = await fetch("http://localhost:8080/pfe-matcher/api/affectations/list-pvs");
+      if (pvsRes.ok) {
+        setPvsByProf(await pvsRes.json());
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const viewPdf = (fileName: string) => {
+    window.open(
+      `http://localhost:8080/pfe-matcher/api/affectations/view/${fileName}`,
+      "_blank"
+    );
+  };
+
+  const downloadPv = (profName: string, fileName: string) => {
+    const link = document.createElement("a");
+    link.href = `http://localhost:8080/pfe-matcher/api/affectations/download-pv/${profName}/${fileName}`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (loading) {
+    return (
+      <>
+        <Navbar activePage="home" />
+        <div className="container my-5 text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -27,24 +111,134 @@ function Pages2() {
       </div>
 
       <div className="container my-5">
-        <h5 className="section-title mb-3">Recapitulatif</h5>
+        
+        {/* AFFECTATIONS SECTION */}
+        <div className="mt-5">
+          <h5 className="section-title mb-3">
+            Liste des Affectations ({assignments.length})
+          </h5>
 
-        <div className="card custom-card mb-4">
-          <div className="card-body">
-            <p className="mb-2">
-              <strong>Liste des etudiants :</strong> {file1?.name ?? "Aucun fichier selectionne"}
-            </p>
-            <p className="mb-2">
-              <strong>Liste des encadrants :</strong> {file2?.name ?? "Aucun fichier selectionne"}
-            </p>
-            <p className="mb-0">
-              <strong>Periode :</strong>{" "}
-              {startDate && endDate ? `${startDate} -> ${endDate}` : "Dates non configurees"}
-            </p>
-          </div>
+          {assignments.length > 0 ? (
+            <div className="table-responsive">
+              <table className="table table-striped table-hover">
+                <thead className="table-dark">
+                  <tr>
+                    <th>#</th>
+                    <th>Etudiant</th>
+                    <th>Email Etudiant</th>
+                    <th>Professeur</th>
+                    <th>Email Professeur</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignments.map((assign, idx) => (
+                    <tr key={assign.id}>
+                      <td>{idx + 1}</td>
+                      <td>{assign.student?.name || "N/A"}</td>
+                      <td>{assign.student?.email || "N/A"}</td>
+                      <td>{assign.professor?.name || "N/A"}</td>
+                      <td>{assign.professor?.email || "N/A"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="alert alert-info">Aucune affectation trouvée</div>
+          )}
         </div>
 
-        <Link className="btn custom-btn px-4" to="/">Retour</Link>
+        {/* PDFS SECTION */}
+        <div className="mt-5">
+          <h5 className="section-title mb-3">
+            Fichiers PDF Generes ({pdfs.length})
+          </h5>
+
+          {pdfs.length > 0 ? (
+            <div className="row">
+              {pdfs.map((pdf) => (
+                <div key={pdf} className="col-md-6 mb-3">
+                  <div className="card">
+                    <div className="card-body">
+                      <h6 className="card-title">{pdf}</h6>
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => viewPdf(pdf)}
+                      >
+                        <i className="bi bi-eye"></i> Voir le PDF
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="alert alert-info">Aucun PDF trouve</div>
+          )}
+        </div>
+
+        {/* PVs SECTION */}
+        <div className="mt-5">
+          <h5 className="section-title mb-3">
+            Fichiers des Professeurs
+          </h5>
+
+          {Object.keys(pvsByProf).length > 0 ? (
+            <div className="accordion" id="pvsAccordion">
+              {Object.entries(pvsByProf).map(([ profName, pvFiles ], idx) => (
+                <div key={profName} className="accordion-item">
+                  <h2 className="accordion-header">
+                    <button
+                      className={`accordion-button ${expandedProf !== profName ? 'collapsed' : ''}`}
+                      type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target={`#accordion-${idx}`}
+                      aria-expanded={expandedProf === profName}
+                      onClick={() => setExpandedProf(expandedProf === profName ? null : profName)}
+                    >
+                      <strong>{profName}</strong>
+                      {pvFiles.length > 0 && (
+                        <span className="badge bg-primary ms-2">{pvFiles.length} Fichier(s)</span>
+                      )}
+                    </button>
+                  </h2>
+                  <div 
+                    id={`accordion-${idx}`}
+                    className={`accordion-collapse collapse ${expandedProf === profName ? 'show' : ''}`}
+                    data-bs-parent="#pvsAccordion"
+                  >
+                    <div className="accordion-body">
+                      {pvFiles.length > 0 ? (
+                        <ul className="list-group">
+                          {pvFiles.map((pvFile) => (
+                            <li key={pvFile} className="list-group-item d-flex justify-content-between align-items-center">
+                              <span>{pvFile}</span>
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() => downloadPv(profName, pvFile)}
+                              >
+                                <i className="bi bi-download"></i> Telecharger
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-muted">Aucun fichier pour ce professeur</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="alert alert-info">Aucun fichier PV trouve</div>
+          )}
+        </div>
+
+        {/* BACK BUTTON */}
+        <div className="mt-5">
+          <Link className="btn custom-btn px-4" to="/">Retour</Link>
+        </div>
       </div>
     </>
   );

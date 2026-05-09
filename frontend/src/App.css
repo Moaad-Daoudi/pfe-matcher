@@ -5,8 +5,8 @@ body {
   background-size: cover;        /* prend tout l’écran */
   background-position: center;   /* centre l’image */
   background-repeat: no-repeat;  /* pas de répétition */
-  background-attachment: scroll; /* l'image scroll avec la page */
-  height: 100vh;
+  background-attachment: fixed; /* l'image reste fixe quand on scroll */
+  min-height: 100vh;
 }
 body::before {
   content: "";
