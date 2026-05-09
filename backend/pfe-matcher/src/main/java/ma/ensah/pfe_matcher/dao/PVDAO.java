@@ -14,4 +14,6 @@ public interface PVDAO {
     PV findById(long id);
 
     List<PV> findAll();
+
+    void clear();
 }

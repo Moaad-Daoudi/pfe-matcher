@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface PVMetier {
     void generatePVsFromSoutenances(List<Soutenance> soutenances, String chemin) throws IOException;
+    void prepareForNewGeneration(String realPath);
 }

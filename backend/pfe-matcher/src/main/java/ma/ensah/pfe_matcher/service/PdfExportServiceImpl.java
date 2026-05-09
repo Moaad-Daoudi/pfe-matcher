@@ -88,12 +88,14 @@ public class PdfExportServiceImpl implements PdfExportService {
                     Student s = profAssignments.get(i).getStudent();
                     Cell cell = new Cell().add(new Paragraph(s.getLastname() + " " + s.getFirstname()).setFontSize(8));
 
-                    if ("ID".equalsIgnoreCase(s.getField())) {
-                        cell.setBackgroundColor(new DeviceRgb(245, 204, 178));
-                    } else if ("GI".equalsIgnoreCase(s.getField())) {
-                        cell.setBackgroundColor(new DeviceRgb(173, 216, 230));
-                    } else if ("TDIA".equalsIgnoreCase(s.getField())) {
-                        cell.setBackgroundColor(new DeviceRgb(200, 230, 201));
+                    String field = (s.getField() != null) ? s.getField().trim().toUpperCase() : "";
+
+                    if (field.startsWith("ID")) {
+                        cell.setBackgroundColor(new DeviceRgb(245, 204, 178)); // Peach
+                    } else if (field.startsWith("GI")) {
+                        cell.setBackgroundColor(new DeviceRgb(173, 216, 230)); // Light Blue
+                    } else if (field.startsWith("TDIA")) {
+                        cell.setBackgroundColor(new DeviceRgb(200, 230, 201)); // Light Green
                     }
                     table.addCell(cell);
                 } else {

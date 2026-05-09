@@ -46,6 +46,8 @@ public class SoutenanceController {
     @PostMapping("/generate")
     public ResponseEntity<?> generatePlanning(@RequestBody PlanningRequest request) {
         try {
+            pvService.prepareForNewGeneration(servletContext.getRealPath("/"));
+
             List<Soutenance> soutenances = planningGenerationService.generatePlanning(request);
             List<String> violations = planningValidationService.runAll(soutenances);
 

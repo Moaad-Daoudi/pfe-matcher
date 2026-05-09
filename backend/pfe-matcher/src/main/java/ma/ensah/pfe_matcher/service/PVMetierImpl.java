@@ -1,8 +1,10 @@
 package ma.ensah.pfe_matcher.service;
 
+import ma.ensah.pfe_matcher.dao.PVDAOImpl;
 import ma.ensah.pfe_matcher.model.PV;
 import ma.ensah.pfe_matcher.model.Soutenance;
 import org.apache.poi.xwpf.usermodel.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -13,6 +15,9 @@ import java.util.List;
 
 @Service
 public class PVMetierImpl implements PVMetier {
+
+    @Autowired
+    private PVDAOImpl pvDao;
 
     @Override
     public void generatePVsFromSoutenances(List<Soutenance> soutenances, String realPath) {
@@ -88,6 +93,26 @@ public class PVMetierImpl implements PVMetier {
                 newRun.setFontFamily("Times New Roman");
                 newRun.setFontSize(12);
                 newRun.setBold(bold);
+            }
+        }
+    }
+
+    @Override
+    public void prepareForNewGeneration(String realPath) {
+        // 1. Clear Memory
+        pvDao.clear();
+
+        // 2. Clear Disk (Delete the whole PVs folder to start fresh)
+        Path pvPath = Paths.get(realPath, "upload", "PVs");
+        if (Files.exists(pvPath)) {
+            try {
+                // Delete directory and contents recursively
+                Files.walk(pvPath)
+                        .sorted(java.util.Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(java.io.File::delete);
+            } catch (IOException e) {
+                System.err.println("Could not clear old PVs: " + e.getMessage());
             }
         }
     }

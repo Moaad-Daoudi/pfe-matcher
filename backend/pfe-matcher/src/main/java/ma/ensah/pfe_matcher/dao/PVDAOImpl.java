@@ -51,4 +51,9 @@ public class PVDAOImpl implements PVDAO {
         return liste;
     }
 
+    @Override
+    public void clear() {
+        liste.clear();
+    }
+
 }
