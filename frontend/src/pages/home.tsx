@@ -44,6 +44,9 @@ function Home() {
       const planningRes = await axios.post(`${API_BASE}/api/soutenances/generate`, planningPayload);
 
       // 3. Navigate to Dashboard with Data
+      localStorage.setItem("affectationData", JSON.stringify(affectationRes.data));
+      localStorage.setItem("planningData", JSON.stringify(planningRes.data));
+
       navigate("/pages2", { 
         state: { 
           affectation: affectationRes.data, 
@@ -76,7 +79,7 @@ function Home() {
           <div className="col-md-6">
             <div className="card custom-card h-100">
               <div className="card-body">
-                <h6 className="card-title">Liste des étudiants (avec colonne Filière)</h6>
+                <h6 className="card-title">Liste des étudiants</h6>
                 <input type="file" className="form-control" onChange={(e) => setFile1(e.target.files?.[0] ?? null)} />
               </div>
             </div>

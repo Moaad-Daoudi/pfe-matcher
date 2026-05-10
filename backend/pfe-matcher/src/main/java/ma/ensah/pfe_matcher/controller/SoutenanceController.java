@@ -18,9 +18,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 @RestController
 @RequestMapping("/api/soutenances")
@@ -83,6 +91,52 @@ public class SoutenanceController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
                 .contentType(MediaType.APPLICATION_PDF)
+                .body(new FileSystemResource(file));
+    }
+
+    @GetMapping("/list-pvs")
+    public ResponseEntity<Map<String, List<String>>> listPvs() {
+        File pvsFolder = new File(servletContext.getRealPath("/upload/PVs/"));
+        Map<String, List<String>> result = new TreeMap<>();
+
+        File[] professorFolders = pvsFolder.listFiles(File::isDirectory);
+        if (professorFolders == null) {
+            return ResponseEntity.ok(result);
+        }
+
+        for (File professorFolder : professorFolders) {
+            File[] files = professorFolder.listFiles((dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".docx"));
+            List<String> fileNames = files == null
+                    ? Collections.emptyList()
+                    : Arrays.stream(files).map(File::getName).sorted().toList();
+            result.put(professorFolder.getName(), fileNames);
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/download-pv/{profName}/{fileName}")
+    public ResponseEntity<FileSystemResource> downloadPv(
+            @PathVariable("profName") String profName,
+            @PathVariable("fileName") String fileName) {
+        String decodedProfName = URLDecoder.decode(profName, StandardCharsets.UTF_8);
+        String decodedFileName = URLDecoder.decode(fileName, StandardCharsets.UTF_8);
+
+        Path root = Paths.get(servletContext.getRealPath("/upload/PVs/")).normalize();
+        Path filePath = root.resolve(decodedProfName).resolve(decodedFileName).normalize();
+        if (!filePath.startsWith(root)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        File file = filePath.toFile();
+        if (!file.exists() || !file.isFile()) {
+            logger.error("PV file not found at: {}", file.getAbsolutePath());
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(new FileSystemResource(file));
     }
 }

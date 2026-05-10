@@ -4,11 +4,15 @@ import { useLocation, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useEffect, useState } from "react";
 
+const API_BASE = "http://localhost:8080/pfe-matcher";
+
 type ImportState = {
-  file1?: File | null;
-  file2?: File | null;
-  startDate?: string;
-  endDate?: string;
+  affectation?: {
+    assignments?: Assignment[];
+  };
+  planning?: {
+    pdfFileName?: string;
+  };
 };
 
 type Student = {
@@ -29,12 +33,31 @@ type Assignment = {
   professor: Professor;
 };
 
+type PdfFile = {
+  name: string;
+  url: string;
+};
+
 function Pages2() {
   const { state } = useLocation();
-  const { file1, file2, startDate, endDate } = (state ?? {}) as ImportState;
   
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [pdfs, setPdfs] = useState<string[]>([]);
+  // Try state first, then fallback to localStorage
+  const affectation = state?.affectation || JSON.parse(localStorage.getItem("affectationData") || "null");
+  const planning = state?.planning || JSON.parse(localStorage.getItem("planningData") || "null");
+  
+  const [assignments] = useState<Assignment[]>(affectation?.assignments ?? []);
+  const [pdfs] = useState<PdfFile[]>([
+    {
+      name: "affectation_final.pdf",
+      url: `${API_BASE}/api/affectations/view/affectation_final.pdf`,
+    },
+    ...(planning?.pdfFileName
+      ? [{
+          name: planning.pdfFileName,
+          url: `${API_BASE}/api/soutenances/view/${encodeURIComponent(planning.pdfFileName)}`,
+        }]
+      : []),
+  ]);
   const [pvsByProf, setPvsByProf] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [expandedProf, setExpandedProf] = useState<string | null>(null);
@@ -45,20 +68,7 @@ function Pages2() {
 
   const fetchData = async () => {
     try {
-      // Fetch assignments
-      const assignRes = await fetch("http://localhost:8080/pfe-matcher/api/affectations/all");
-      if (assignRes.ok) {
-        setAssignments(await assignRes.json());
-      }
-
-      // Fetch PDFs
-      const pdfRes = await fetch("http://localhost:8080/pfe-matcher/api/affectations/list-pdfs");
-      if (pdfRes.ok) {
-        setPdfs(await pdfRes.json());
-      }
-
-      // Fetch PVs
-      const pvsRes = await fetch("http://localhost:8080/pfe-matcher/api/affectations/list-pvs");
+      const pvsRes = await fetch(`${API_BASE}/api/soutenances/list-pvs`);
       if (pvsRes.ok) {
         setPvsByProf(await pvsRes.json());
       }
@@ -69,16 +79,13 @@ function Pages2() {
     }
   };
 
-  const viewPdf = (fileName: string) => {
-    window.open(
-      `http://localhost:8080/pfe-matcher/api/affectations/view/${fileName}`,
-      "_blank"
-    );
+  const viewPdf = (url: string) => {
+    window.open(url, "_blank");
   };
 
   const downloadPv = (profName: string, fileName: string) => {
     const link = document.createElement("a");
-    link.href = `http://localhost:8080/pfe-matcher/api/affectations/download-pv/${profName}/${fileName}`;
+    link.href = `${API_BASE}/api/soutenances/download-pv/${encodeURIComponent(profName)}/${encodeURIComponent(fileName)}`;
     link.download = fileName;
     document.body.appendChild(link);
     link.click();
@@ -157,13 +164,13 @@ function Pages2() {
           {pdfs.length > 0 ? (
             <div className="row">
               {pdfs.map((pdf) => (
-                <div key={pdf} className="col-md-6 mb-3">
+                <div key={pdf.name} className="col-md-6 mb-3">
                   <div className="card">
                     <div className="card-body">
-                      <h6 className="card-title">{pdf}</h6>
+                      <h6 className="card-title">{pdf.name}</h6>
                       <button
                         className="btn btn-sm btn-primary"
-                        onClick={() => viewPdf(pdf)}
+                        onClick={() => viewPdf(pdf.url)}
                       >
                         <i className="bi bi-eye"></i> Voir le PDF
                       </button>

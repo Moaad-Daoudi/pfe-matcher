@@ -3,14 +3,22 @@ package ma.ensah.pfe_matcher.service;
 import ma.ensah.pfe_matcher.dao.PVDAOImpl;
 import ma.ensah.pfe_matcher.model.PV;
 import ma.ensah.pfe_matcher.model.Soutenance;
-import org.apache.poi.xwpf.usermodel.*;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -22,7 +30,6 @@ public class PVMetierImpl implements PVMetier {
     @Override
     public void generatePVsFromSoutenances(List<Soutenance> soutenances, String realPath) {
         for (Soutenance s : soutenances) {
-            // Convert Soutenance to PV object
             PV pv = new PV();
             pv.setNom(s.getAssignment().getStudent().getLastname());
             pv.setPrenom(s.getAssignment().getStudent().getFirstname());
@@ -42,23 +49,27 @@ public class PVMetierImpl implements PVMetier {
     }
 
     private void processWordDocument(PV ligne, String realPath) throws IOException {
-        String templatePath = realPath + File.separator + "WEB-INF" + File.separator + "template" + File.separator + "Fiche_Evaluation_PFE_NomEtudiant_Prénom.docx";
-        Path outputDir = Paths.get(realPath, "upload", "PVs", ligne.getEncadrant());
+        Path templatePath = resolveTemplatePath(realPath);
+        Path outputDir = Paths.get(realPath, "upload", "PVs", safePathSegment(ligne.getEncadrant()));
         Files.createDirectories(outputDir);
 
-        String outputPath = outputDir.toString() + File.separator + "Fiche_Evaluation_PFE_" + ligne.getNom() + "_" + ligne.getPrenom() + ".docx";
+        Path outputPath = outputDir.resolve("Fiche_Evaluation_PFE_"
+                + safePathSegment(ligne.getNom()) + "_"
+                + safePathSegment(ligne.getPrenom()) + ".docx");
 
-        try (FileInputStream fis = new FileInputStream(templatePath);
-             XWPFDocument document = new XWPFDocument(fis)) {
-
+        try (XWPFDocument document = new XWPFDocument(Files.newInputStream(templatePath))) {
             remplacerTexteDansParagraphes(document.getParagraphs(), "${NOM}", ligne.getNom() + " " + ligne.getPrenom(), false);
             remplacerTexteDansParagraphes(document.getParagraphs(), "${DATE}", ligne.getDate(), false);
 
-            String coucheTdia = "☐", coucheId = "☐", coucheGi = "☐";
-            String f = ligne.getFiliere().toLowerCase();
-            if(f.contains("tdia")) coucheTdia = "☑";
-            else if(f.contains("gi")) coucheGi = "☑";
-            else coucheId = "☑";
+            String coucheTdia = "\u2610", coucheId = "\u2610", coucheGi = "\u2610";
+            String f = ligne.getFiliere() == null ? "" : ligne.getFiliere().toLowerCase();
+            if (f.contains("tdia")) {
+                coucheTdia = "\u2611";
+            } else if (f.contains("gi")) {
+                coucheGi = "\u2611";
+            } else {
+                coucheId = "\u2611";
+            }
 
             remplacerTexteDansParagraphes(document.getParagraphs(), "${FILIERE_ID}", coucheId, true);
             remplacerTexteDansParagraphes(document.getParagraphs(), "${FILIERE_GI}", coucheGi, true);
@@ -74,10 +85,27 @@ public class PVMetierImpl implements PVMetier {
                 }
             }
 
-            try (FileOutputStream fos = new FileOutputStream(outputPath)) {
+            try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
                 document.write(fos);
             }
         }
+    }
+
+    private Path resolveTemplatePath(String realPath) throws IOException {
+        Path templateDir = Paths.get(realPath, "WEB-INF", "template");
+        try (var stream = Files.list(templateDir)) {
+            return stream
+                    .filter(path -> path.getFileName().toString().toLowerCase().endsWith(".docx"))
+                    .findFirst()
+                    .orElseThrow(() -> new FileNotFoundException("No DOCX template found in " + templateDir));
+        }
+    }
+
+    private String safePathSegment(String value) {
+        if (value == null || value.isBlank()) {
+            return "unknown";
+        }
+        return value.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
     }
 
     private void remplacerTexteDansParagraphes(List<XWPFParagraph> paragraphes, String cible, String remplacement, boolean bold) {
@@ -99,16 +127,13 @@ public class PVMetierImpl implements PVMetier {
 
     @Override
     public void prepareForNewGeneration(String realPath) {
-        // 1. Clear Memory
         pvDao.clear();
 
-        // 2. Clear Disk (Delete the whole PVs folder to start fresh)
         Path pvPath = Paths.get(realPath, "upload", "PVs");
         if (Files.exists(pvPath)) {
             try {
-                // Delete directory and contents recursively
                 Files.walk(pvPath)
-                        .sorted(java.util.Comparator.reverseOrder())
+                        .sorted(Comparator.reverseOrder())
                         .map(Path::toFile)
                         .forEach(java.io.File::delete);
             } catch (IOException e) {
