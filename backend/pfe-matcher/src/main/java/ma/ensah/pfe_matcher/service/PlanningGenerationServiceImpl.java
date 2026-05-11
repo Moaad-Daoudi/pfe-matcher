@@ -19,6 +19,9 @@ import java.util.stream.Collectors;
 @Service
 public class PlanningGenerationServiceImpl implements PlanningGenerationService {
 
+    @Autowired
+    private ConfigService configService;
+
     private static final DateTimeFormatter[] DATE_FORMATS = new DateTimeFormatter[]{
             DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -293,7 +296,10 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
 
     private List<String> buildSchedulingOrder(Map<String, Deque<Assignment>> byField) {
         List<String> order = new ArrayList<>();
-        for (String preferred : List.of("GI", "ID", "TDIA")) {
+        // Fetch all filières organically from the JSON config
+        List<String> preferredFields = configService.getAllFiliereCodes();
+        
+        for (String preferred : preferredFields) {
             if (byField.containsKey(preferred)) {
                 order.add(preferred);
             }
@@ -383,27 +389,7 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                 && assignment.getStudent() != null
                 && assignment.getStudent().getField() != null
                 && !assignment.getStudent().getField().isBlank()) {
-            String raw = assignment.getStudent().getField().trim().toUpperCase();
-            String normalized = raw.replaceAll("[^A-Z0-9]+", " ").trim();
-
-            if (normalized.contains("TDIA")) {
-                return "TDIA";
-            }
-            if (normalized.contains("GENIE INFORMATIQUE")) {
-                return "GI";
-            }
-            if (normalized.contains("INGENIERIE DIGITALE") || normalized.contains("INFORMATIQUE DECISIONNELLE")) {
-                return "ID";
-            }
-
-            List<String> tokens = Arrays.asList(normalized.split("\\s+"));
-            if (tokens.contains("GI")) {
-                return "GI";
-            }
-            if (tokens.contains("ID")) {
-                return "ID";
-            }
-            return normalized;
+            return configService.getMappedField(assignment.getStudent().getField());
         }
         return "UNKNOWN";
     }

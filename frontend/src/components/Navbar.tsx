@@ -25,7 +25,7 @@ const navbarStyles = `
 `;
 
 interface NavbarProps {
-  activePage?: "home" | "dashboard" | "contact" | "about";
+  activePage?: "home" | "dashboard" | "pages2" | "contact" | "about";
 }
 
 function Navbar({ activePage }: NavbarProps) {
@@ -42,6 +42,9 @@ function Navbar({ activePage }: NavbarProps) {
             <ul className="navbar-nav ms-auto">
               <li className="nav-item">
                 <Link className={`nav-link ${activePage === "home" ? "active" : ""}`} to="/">Home</Link>
+              </li>
+              <li className="nav-item">
+                <Link className={`nav-link ${activePage === "pages2" ? "active" : ""}`} to="/pages2">Résultats & Documents</Link>
               </li>
               <li className="nav-item">
                 <Link className={`nav-link ${activePage === "dashboard" ? "active" : ""}`} to="/dashbord">Dashboard</Link>

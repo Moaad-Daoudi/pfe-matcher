@@ -1,0 +1,29 @@
+{
+  "allowedDepartments": ["INFORMATIQUE", "MATHEMATIQUE", "MATHÉMATIQUE"],
+  "headerMappings": {
+    "CNE": ["CNE", "ID", "CODE ETUDIANT"],
+    "NOM": ["NOM", "LASTNAME", "NAME", "NOM ETUDIANT"],
+    "PRENOM": ["PRENOM", "FIRSTNAME", "PRENOM ETUDIANT"],
+    "FILIERE": ["FILIERE", "DISCPLINE", "DISCIPLINE", "SPECIALITE"]
+  },
+  "departements": [
+    {
+      "nom": "INFORMATIQUE",
+      "aliases": ["INFORMATIQUE", "INFO", "COMPUTER SCIENCE"],
+      "filieres": [
+        { "code": "GI", "aliases": ["GI", "GI3", "GENIE INFORMATIQUE"], "couleur": "#ADD8E6" },
+        { "code": "ID", "aliases": ["ID", "ID3", "INGENIERIE DES DONNEES"], "couleur": "#F5CCB2" },
+        { "code": "TDIA", "aliases": ["TDIA", "TDIA3", "IA"], "couleur": "#C8E6C9" }
+      ]
+    },
+    {
+      "nom": "MATHEMATIQUE",
+      "aliases": ["MATHEMATIQUE", "MATH", "MATHÉMATIQUE"],
+      "filieres": [
+        { "code": "GI", "aliases": ["GI", "GI3"], "couleur": "#ADD8E6" },
+        { "code": "ID", "aliases": ["ID", "ID3"], "couleur": "#F5CCB2" },
+        { "code": "TDIA", "aliases": ["TDIA", "TDIA3", "IA"], "couleur": "#C8E6C9" }
+      ]
+    }
+  ]
+}

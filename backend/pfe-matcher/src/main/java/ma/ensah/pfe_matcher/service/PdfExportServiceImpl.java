@@ -25,10 +25,13 @@ public class PdfExportServiceImpl implements PdfExportService {
     @Autowired
     private ServletContext servletContext;
 
+    @Autowired 
+    private ConfigService configService;
+
     // Define allowed departments here
-    private static final Set<String> ALLOWED_DEPARTMENTS = new HashSet<>(
-            Arrays.asList("Informatique", "Mathématique")
-    );
+    // private static final Set<String> ALLOWED_DEPARTMENTS = new HashSet<>(
+    //         Arrays.asList("Informatique", "Mathématique")
+    // );
 
     @Override
     public void generateAssignmentPdf(List<Assignment> allAssignments, List<Professor> allProfessors, String fileName) throws Exception {
@@ -44,10 +47,10 @@ public class PdfExportServiceImpl implements PdfExportService {
         Document document = new Document(pdf, PageSize.A4.rotate());
 
         // --- SORTING LOGIC ---
-        // Create a copy and sort it alphabetically by lastname
+        List<String> allowedDepts = configService.getAllowedDepartments();
         List<Professor> sortedProfessors = allProfessors.stream()
-                .filter(p -> ALLOWED_DEPARTMENTS.stream()
-                        .anyMatch(dept -> dept.equalsIgnoreCase(p.getDepartment())))
+                .filter(p -> allowedDepts.stream()
+                        .anyMatch(dept -> p.getDepartment().toUpperCase().contains(dept.toUpperCase())))
                 .sorted(Comparator.comparing(Professor::getLastname, String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toList());
 
@@ -88,15 +91,9 @@ public class PdfExportServiceImpl implements PdfExportService {
                     Student s = profAssignments.get(i).getStudent();
                     Cell cell = new Cell().add(new Paragraph(s.getLastname() + " " + s.getFirstname()).setFontSize(8));
 
-                    String field = (s.getField() != null) ? s.getField().trim().toUpperCase() : "";
-
-                    if (field.startsWith("ID")) {
-                        cell.setBackgroundColor(new DeviceRgb(245, 204, 178)); // Peach
-                    } else if (field.startsWith("GI")) {
-                        cell.setBackgroundColor(new DeviceRgb(173, 216, 230)); // Light Blue
-                    } else if (field.startsWith("TDIA")) {
-                        cell.setBackgroundColor(new DeviceRgb(200, 230, 201)); // Light Green
-                    }
+                    String hexColor = configService.getCouleur(s.getField());
+                    java.awt.Color awtColor = java.awt.Color.decode(hexColor);
+                    cell.setBackgroundColor(new DeviceRgb(awtColor.getRed()/255f, awtColor.getGreen()/255f, awtColor.getBlue()/255f));
                     table.addCell(cell);
                 } else {
                     table.addCell(new Cell().add(new Paragraph(" ")));
@@ -109,12 +106,20 @@ public class PdfExportServiceImpl implements PdfExportService {
     }
 
     private void addLegend(Document document) {
-        Table legendTable = new Table(3); // 3 Columns
+        // Fetch all known filiere codes to build the legend dynamically
+        List<String> codes = configService.getAllFiliereCodes();
+        
+        Table legendTable = new Table(codes.size() > 0 ? codes.size() : 1);
         legendTable.setWidth(UnitValue.createPercentValue(45));
 
-        legendTable.addCell(new Cell().add(new Paragraph("Filière ID")).setBackgroundColor(new DeviceRgb(245, 204, 178)).setFontSize(9));
-        legendTable.addCell(new Cell().add(new Paragraph("Filière GI")).setBackgroundColor(new DeviceRgb(173, 216, 230)).setFontSize(9));
-        legendTable.addCell(new Cell().add(new Paragraph("Filière TDIA")).setBackgroundColor(new DeviceRgb(200, 230, 201)).setFontSize(9));
+        for (String code : codes) {
+            String hexColor = configService.getCouleur(code);
+            java.awt.Color awtColor = java.awt.Color.decode(hexColor);
+            DeviceRgb rgb = new DeviceRgb(awtColor.getRed() / 255f, awtColor.getGreen() / 255f, awtColor.getBlue() / 255f);
+            
+            legendTable.addCell(new Cell().add(new Paragraph("Filière " + code))
+                    .setBackgroundColor(rgb).setFontSize(9));
+        }
 
         document.add(legendTable);
     }

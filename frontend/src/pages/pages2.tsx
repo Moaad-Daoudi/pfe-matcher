@@ -17,14 +17,16 @@ type ImportState = {
 
 type Student = {
   id: string;
-  name: string;
-  email: string;
+  firstname: string;
+  lastname: string;
+  // email: string;
 };
 
 type Professor = {
   id: string;
-  name: string;
-  email: string;
+  firstname: string;
+  lastname: string;
+  // email: string;
 };
 
 type Assignment = {
@@ -65,6 +67,10 @@ function Pages2() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    console.log("Structure des données reçues :", assignments);
+  }, [assignments]);
 
   const fetchData = async () => {
     try {
@@ -132,19 +138,19 @@ function Pages2() {
                   <tr>
                     <th>#</th>
                     <th>Etudiant</th>
-                    <th>Email Etudiant</th>
+                    {/* <th>Email Etudiant</th> */}
                     <th>Professeur</th>
-                    <th>Email Professeur</th>
+                    {/* <th>Email Professeur</th> */}
                   </tr>
                 </thead>
                 <tbody>
                   {assignments.map((assign, idx) => (
                     <tr key={assign.id}>
                       <td>{idx + 1}</td>
-                      <td>{assign.student?.name || "N/A"}</td>
-                      <td>{assign.student?.email || "N/A"}</td>
-                      <td>{assign.professor?.name || "N/A"}</td>
-                      <td>{assign.professor?.email || "N/A"}</td>
+                      <td>{assign.student? `${assign.student.firstname} ${assign.student.lastname}` : "N/A"}</td>
+                      {/* <td>{assign.student?.email || "N/A"}</td> */}
+                      <td>{assign.professor? `${assign.professor.firstname} ${assign.student.lastname}` : "N/A"}</td>
+                      {/* <td>{assign.professor?.email || "N/A"}</td> */}
                     </tr>
                   ))}
                 </tbody>

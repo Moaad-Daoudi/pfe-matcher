@@ -20,27 +20,27 @@ public class MatchingEngineServiceImpl implements MatchingEngineService {
     @Autowired
     private AssignmentDAO storageDAO;
 
+    @Autowired 
+    private ConfigService configService;
+
     // Define allowed departments here (or load from application.properties)
-    private static final Set<String> ALLOWED_DEPARTMENTS = new HashSet<>(
-            Arrays.asList("Informatique", "Mathématique")
-    );
+//     private static final Set<String> ALLOWED_DEPARTMENTS = new HashSet<>(
+//             Arrays.asList("Informatique", "Mathématique")
+//     );
 
     @Override
     public List<Assignment> assignStudentsToProfs(List<Student> students, List<Professor> professors) {
-        // FILTER: Only keep professors from allowed departments
+        List<String> allowedDepts = configService.getAllowedDepartments();
+
         List<Professor> validProfessors = professors.stream()
-                .filter(p -> ALLOWED_DEPARTMENTS.stream()
-                        .anyMatch(dept -> dept.equalsIgnoreCase(p.getDepartment())))
+                .filter(p -> allowedDepts.stream()
+                        .anyMatch(d -> p.getDepartment().toUpperCase().contains(d.toUpperCase())))
                 .collect(Collectors.toList());
 
-        if (validProfessors.isEmpty()) {
-            throw new RuntimeException("No professors found in valid departments (Informatique/Mathématique)");
-        }
+        if (validProfessors.isEmpty()) throw new RuntimeException("Aucun professeur trouvé.");
 
-        int dynamicMax = (int) Math.ceil((double) students.size() / validProfessors.size()) + 1;
+        int dynamicMax = (int) Math.ceil((double) students.size() / validProfessors.size());
         validProfessors.forEach(p -> p.setMaxCapacity(dynamicMax));
-        logger.info("Dynamic Capacity Calculated: {} students / {} profs = Max {} per prof",
-                students.size(), validProfessors.size(), dynamicMax);
 
         List<Student> shuffled = new ArrayList<>(students);
         Collections.shuffle(shuffled);
@@ -49,18 +49,14 @@ public class MatchingEngineServiceImpl implements MatchingEngineService {
         List<Assignment> newAssignments = new ArrayList<>();
 
         for (Student student : shuffled) {
-            // Find professor with lowest load that is under their NEW dynamicMax
             Professor chosen = validProfessors.stream()
                     .filter(p -> totalLoad.getOrDefault(p.getLastname(), 0) < p.getMaxCapacity())
                     .min(Comparator.comparingInt(p -> totalLoad.getOrDefault(p.getLastname(), 0)))
-                    .orElseThrow(() -> new RuntimeException("All professors reached calculated capacity"));
+                    .orElseThrow(() -> new RuntimeException("Capacité maximale atteinte"));
 
-            String profKey = chosen.getLastname();
-            totalLoad.put(profKey, totalLoad.getOrDefault(profKey, 0) + 1);
-
+            totalLoad.put(chosen.getLastname(), totalLoad.getOrDefault(chosen.getLastname(), 0) + 1);
             newAssignments.add(new Assignment(UUID.randomUUID().toString(), student, chosen));
         }
-
         storageDAO.saveAll(newAssignments);
         return newAssignments;
     }
