@@ -1,63 +1,31 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../App.css";
-import { useLocation, Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useEffect, useState } from "react";
 
 const API_BASE = "http://localhost:8080/pfe-matcher";
-
-type ImportState = {
-  affectation?: {
-    assignments?: Assignment[];
-  };
-  planning?: {
-    pdfFileName?: string;
-  };
-};
-
-type Student = {
-  id: string;
-  name: string;
-  email: string;
-};
-
-type Professor = {
-  id: string;
-  name: string;
-  email: string;
-};
-
-type Assignment = {
-  id: string;
-  student: Student;
-  professor: Professor;
-};
 
 type PdfFile = {
   name: string;
   url: string;
 };
 
+type PlanningResult = {
+  pdfFileName?: string;
+};
+
+type ImportState = {
+  affectation?: {
+    assignments?: unknown[];
+  };
+  planning?: PlanningResult;
+};
+
 function Pages2() {
   const { state } = useLocation();
-  
-  // Try state first, then fallback to localStorage
-  const affectation = state?.affectation || JSON.parse(localStorage.getItem("affectationData") || "null");
-  const planning = state?.planning || JSON.parse(localStorage.getItem("planningData") || "null");
-  
-  const [assignments] = useState<Assignment[]>(affectation?.assignments ?? []);
-  const [pdfs] = useState<PdfFile[]>([
-    {
-      name: "affectation_final.pdf",
-      url: `${API_BASE}/api/affectations/view/affectation_final.pdf`,
-    },
-    ...(planning?.pdfFileName
-      ? [{
-          name: planning.pdfFileName,
-          url: `${API_BASE}/api/soutenances/view/${encodeURIComponent(planning.pdfFileName)}`,
-        }]
-      : []),
-  ]);
+  const routeState = state as ImportState | null;
+  const [pdfs, setPdfs] = useState<PdfFile[]>([]);
   const [pvsByProf, setPvsByProf] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [expandedProf, setExpandedProf] = useState<string | null>(null);
@@ -68,7 +36,25 @@ function Pages2() {
 
   const fetchData = async () => {
     try {
-      const pvsRes = await fetch(`${API_BASE}/api/soutenances/list-pvs`);
+      const [pdfsRes, pvsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/soutenances/list-pdfs`),
+        fetch(`${API_BASE}/api/soutenances/list-pvs`),
+      ]);
+
+      let fileNames: string[] = [];
+      if (pdfsRes.ok) {
+        fileNames = await pdfsRes.json();
+      }
+
+      if (fileNames.length === 0) {
+        fileNames = await getGeneratedPdfFallbacks();
+      }
+
+      setPdfs(fileNames.map((fileName) => ({
+        name: fileName,
+        url: getPdfUrl(fileName),
+      })));
+
       if (pvsRes.ok) {
         setPvsByProf(await pvsRes.json());
       }
@@ -83,6 +69,60 @@ function Pages2() {
     window.open(url, "_blank");
   };
 
+  const getGeneratedPdfFallbacks = async () => {
+    const fileNames = new Set<string>();
+
+    if (routeState?.affectation) {
+      fileNames.add("affectation_final.pdf");
+    }
+    if (routeState?.planning?.pdfFileName) {
+      fileNames.add(routeState.planning.pdfFileName);
+    }
+
+    try {
+      const [affectationRes, planningRes] = await Promise.all([
+        fetch(`${API_BASE}/api/affectations/current`),
+        fetch(`${API_BASE}/api/soutenances/current`),
+      ]);
+
+      if (affectationRes.ok) {
+        fileNames.add("affectation_final.pdf");
+      }
+      if (planningRes.ok) {
+        const planning: PlanningResult = await planningRes.json();
+        if (planning.pdfFileName) {
+          fileNames.add(planning.pdfFileName);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching generated PDF fallbacks:", error);
+    }
+
+    await Promise.all([
+      addPdfIfAvailable(fileNames, "affectation_final.pdf"),
+      addPdfIfAvailable(fileNames, "planning_soutenances.pdf"),
+    ]);
+
+    return Array.from(fileNames);
+  };
+
+  const addPdfIfAvailable = async (fileNames: Set<string>, fileName: string) => {
+    try {
+      const response = await fetch(getPdfUrl(fileName), { method: "HEAD" });
+      if (response.ok) {
+        fileNames.add(fileName);
+      }
+    } catch (error) {
+      console.error(`Error checking PDF ${fileName}:`, error);
+    }
+  };
+
+  const getPdfUrl = (fileName: string) => {
+    const encodedName = encodeURIComponent(fileName);
+    const endpoint = fileName === "affectation_final.pdf" ? "affectations" : "soutenances";
+    return `${API_BASE}/api/${endpoint}/view/${encodedName}`;
+  };
+
   const downloadPv = (profName: string, fileName: string) => {
     const link = document.createElement("a");
     link.href = `${API_BASE}/api/soutenances/download-pv/${encodeURIComponent(profName)}/${encodeURIComponent(fileName)}`;
@@ -95,7 +135,7 @@ function Pages2() {
   if (loading) {
     return (
       <>
-        <Navbar activePage="home" />
+        <Navbar activePage="planing" dashboardState={routeState} />
         <div className="container my-5 text-center">
           <div className="spinner-border text-primary" role="status">
             <span className="visually-hidden">Loading...</span>
@@ -108,7 +148,7 @@ function Pages2() {
   return (
     <>
       {/* NAVBAR */}
-      <Navbar activePage="home" />
+      <Navbar activePage="planing" dashboardState={routeState} />
 
       <div className="custom-hero">
         <div className="container py-4">
@@ -118,42 +158,6 @@ function Pages2() {
       </div>
 
       <div className="container my-5">
-        
-        {/* AFFECTATIONS SECTION */}
-        <div className="mt-5">
-          <h5 className="section-title mb-3">
-            Liste des Affectations ({assignments.length})
-          </h5>
-
-          {assignments.length > 0 ? (
-            <div className="table-responsive">
-              <table className="table table-striped table-hover">
-                <thead className="table-dark">
-                  <tr>
-                    <th>#</th>
-                    <th>Etudiant</th>
-                    <th>Email Etudiant</th>
-                    <th>Professeur</th>
-                    <th>Email Professeur</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assignments.map((assign, idx) => (
-                    <tr key={assign.id}>
-                      <td>{idx + 1}</td>
-                      <td>{assign.student?.name || "N/A"}</td>
-                      <td>{assign.student?.email || "N/A"}</td>
-                      <td>{assign.professor?.name || "N/A"}</td>
-                      <td>{assign.professor?.email || "N/A"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="alert alert-info">Aucune affectation trouvée</div>
-          )}
-        </div>
 
         {/* PDFS SECTION */}
         <div className="mt-5">

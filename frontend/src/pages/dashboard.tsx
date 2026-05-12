@@ -1,20 +1,32 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../App.css";
 import Navbar from "../components/Navbar";
-import { useLocation, Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+
+const API_BASE = "http://localhost:8080/pfe-matcher";
 
 type CountMap = Record<string, number>;
 
+type Assignment = {
+  professor?: {
+    lastname?: string;
+  };
+  student?: {
+    field?: string;
+  };
+};
+
 type DashboardState = {
   affectation?: {
-    assignments?: any[];
+    assignments?: Assignment[];
     stats?: {
       studentsPerProf?: CountMap;
       fieldStats?: CountMap;
     };
   };
   planning?: {
-    soutenances?: any[];
+    soutenances?: unknown[];
     stats?: {
       totalSoutenances?: number;
       totalViolations?: number;
@@ -38,19 +50,72 @@ function toNumberMap(value: unknown): CountMap {
 
 function Dashboard() {
   const { state } = useLocation();
-  
-  // Try state first, then fallback to localStorage
-  const affectation = state?.affectation || JSON.parse(localStorage.getItem("affectationData") || "null");
-  const planning = state?.planning || JSON.parse(localStorage.getItem("planningData") || "null");
+  const routeState = state as DashboardState | null;
+  const [dashboardData, setDashboardData] = useState<DashboardState | null>(routeState);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (routeState?.affectation && routeState?.planning) {
+        setDashboardData(routeState);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [affectationRes, planningRes] = await Promise.all([
+          fetch(`${API_BASE}/api/affectations/current`),
+          fetch(`${API_BASE}/api/soutenances/current`),
+        ]);
+
+        if (!affectationRes.ok || !planningRes.ok) {
+          setDashboardData(null);
+          return;
+        }
+
+        const [affectation, planning] = await Promise.all([
+          affectationRes.json(),
+          planningRes.json(),
+        ]);
+
+        setDashboardData({ affectation, planning });
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        setDashboardData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [routeState]);
+
+  if (loading) {
+    return (
+      <>
+        <Navbar activePage="dashboard" />
+        <div className="container my-5 text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const affectation = dashboardData?.affectation ?? null;
+  const planning = dashboardData?.planning ?? null;
 
   if (!affectation || !planning) {
     return (
-      <div className="pg text-center text-white py-5">
+      <>
         <Navbar activePage="dashboard" />
-        <h3 className="mt-5">Aucune donnee disponible.</h3>
-        <p>Veuillez revenir a la page d'accueil pour importer les fichiers.</p>
-        <Link to="/" className="btn btn-primary mt-3">Retour a l'import</Link>
-      </div>
+        <div className="pg text-center text-white py-5">
+          <h3 className="mt-5">Aucune donnee disponible.</h3>
+          <p>Veuillez revenir a la page d'accueil pour importer les fichiers.</p>
+          <Link to="/" className="btn btn-primary mt-3">Retour a l'import</Link>
+        </div>
+      </>
     );
   }
 
@@ -91,7 +156,7 @@ function Dashboard() {
       <div className="custom-hero">
         <div className="container py-4">
           <h2 className="text-white fw-bold mb-1">Tableau de Bord</h2>
-          <p className="text-white-50 mb-0">Statistiques calculees par le backend</p>
+          <p className="text-white-50 mb-0">Statistiques</p>
         </div>
       </div>
 
@@ -131,9 +196,9 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="row g-4 mb-5">
+        <div className="row g-4 mb-5 align-items-start">
           <div className="col-lg-6">
-            <div className="card custom-card">
+            <div className="card custom-card mb-4">
               <div className="card-header bg-primary bg-opacity-10 border-bottom border-primary">
                 <h5 className="card-title text-primary mb-0">Etudiants par Professeur ({totalProfessors})</h5>
               </div>
@@ -151,10 +216,11 @@ function Dashboard() {
                 ))}
               </div>
             </div>
+
           </div>
 
           <div className="col-lg-6">
-            <div className="card custom-card">
+            <div className="card custom-card mb-4">
               <div className="card-header bg-success bg-opacity-10 border-bottom border-success">
                 <h5 className="card-title text-success mb-0">Soutenances par Salle</h5>
               </div>
@@ -172,33 +238,8 @@ function Dashboard() {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="row g-4 mb-5">
-          <div className="col-lg-6">
-            <div className="card custom-card">
-              <div className="card-header bg-warning bg-opacity-10 border-bottom border-warning">
-                <h5 className="card-title text-warning mb-0">Etudiants par Filiere</h5>
-              </div>
-              <div className="card-body">
-                {Object.entries(fieldStats).map(([field, count]) => (
-                  <div key={field} className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-1">
-                      <span className="text-white fw-500">{field}</span>
-                      <span className="badge bg-warning text-dark">{count}</span>
-                    </div>
-                    <div className="progress" style={{ height: "8px" }}>
-                      <div className="progress-bar bg-warning" style={{ width: `${(count / maxFieldCount) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="col-lg-6">
-            <div className="card custom-card">
+            <div className="card custom-card mb-4">
               <div className="card-header bg-info bg-opacity-10 border-bottom border-info">
                 <h5 className="card-title text-info mb-0">Soutenances par Date</h5>
               </div>
@@ -219,6 +260,25 @@ function Dashboard() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            <div className="card custom-card">
+              <div className="card-header bg-warning bg-opacity-10 border-bottom border-warning">
+                <h5 className="card-title text-warning mb-0">Etudiants par Filiere</h5>
+              </div>
+              <div className="card-body">
+                {Object.entries(fieldStats).map(([field, count]) => (
+                  <div key={field} className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="text-white fw-500">{field}</span>
+                      <span className="badge bg-warning text-dark">{count}</span>
+                    </div>
+                    <div className="progress" style={{ height: "8px" }}>
+                      <div className="progress-bar bg-warning" style={{ width: `${(count / maxFieldCount) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

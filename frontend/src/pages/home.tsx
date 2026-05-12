@@ -43,11 +43,8 @@ function Home() {
       };
       const planningRes = await axios.post(`${API_BASE}/api/soutenances/generate`, planningPayload);
 
-      // 3. Navigate to Dashboard with Data
-      localStorage.setItem("affectationData", JSON.stringify(affectationRes.data));
-      localStorage.setItem("planningData", JSON.stringify(planningRes.data));
-
-      navigate("/pages2", { 
+      // 3. Navigate to planning after backend generated data
+      navigate("/planing", { 
         state: { 
           affectation: affectationRes.data, 
           planning: planningRes.data 

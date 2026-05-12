@@ -53,6 +53,18 @@ public class AffectationController {
         return ResponseEntity.ok("Assignments cleared successfully.");
     }
 
+    @GetMapping("/current")
+    public ResponseEntity<AssignmentResult> getCurrentAffectation() {
+        List<Assignment> assignments = assignmentDAO.getAll();
+        if (assignments.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<String> violations = validationService.runAll(assignments);
+        Map<String, Object> stats = dashboardService.getStats(assignments);
+        return ResponseEntity.ok(new AssignmentResult(assignments, violations, stats));
+    }
+
     @PostMapping("/process")
     public ResponseEntity<AssignmentResult> processAffectation(
             @RequestParam("studentFile") MultipartFile studentFile,

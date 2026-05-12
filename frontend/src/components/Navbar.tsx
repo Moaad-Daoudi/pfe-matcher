@@ -25,10 +25,11 @@ const navbarStyles = `
 `;
 
 interface NavbarProps {
-  activePage?: "home" | "dashboard" | "contact" | "about";
+  activePage?: "home" | "planing" | "dashboard" | "contact" | "about";
+  dashboardState?: unknown;
 }
 
-function Navbar({ activePage }: NavbarProps) {
+function Navbar({ activePage, dashboardState }: NavbarProps) {
   return (
     <>
       <style>{navbarStyles}</style>
@@ -44,7 +45,10 @@ function Navbar({ activePage }: NavbarProps) {
                 <Link className={`nav-link ${activePage === "home" ? "active" : ""}`} to="/">Home</Link>
               </li>
               <li className="nav-item">
-                <Link className={`nav-link ${activePage === "dashboard" ? "active" : ""}`} to="/dashbord">Dashboard</Link>
+                <Link className={`nav-link ${activePage === "planing" ? "active" : ""}`} to="/planing">Planing</Link>
+              </li>
+              <li className="nav-item">
+                <Link className={`nav-link ${activePage === "dashboard" ? "active" : ""}`} to="/dashbord" state={dashboardState}>Dashboard</Link>
               </li>
               <li className="nav-item">
                 <Link className={`nav-link ${activePage === "contact" ? "active" : ""}`} to="/contact">Contact</Link>
