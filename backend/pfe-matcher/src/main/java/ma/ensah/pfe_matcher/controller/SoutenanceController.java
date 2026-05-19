@@ -51,6 +51,8 @@ public class SoutenanceController {
     @Autowired
     private ServletContext servletContext;
 
+    private PlanningResult currentPlanningResult;
+
     @PostMapping("/generate")
     public ResponseEntity<?> generatePlanning(@RequestBody PlanningRequest request) {
         try {
@@ -69,7 +71,9 @@ public class SoutenanceController {
 
             logger.info("Planning generated and PVs created. Soutenances: {}", soutenances.size());
 
-            return ResponseEntity.ok(new PlanningResult(soutenances, violations, stats, fileName));
+            currentPlanningResult = new PlanningResult(soutenances, violations, stats, fileName);
+
+            return ResponseEntity.ok(currentPlanningResult);
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid planning request: {}", e.getMessage());
             Map<String, String> error = new HashMap<>();
@@ -92,6 +96,26 @@ public class SoutenanceController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(new FileSystemResource(file));
+    }
+
+    @GetMapping("/current")
+    public ResponseEntity<PlanningResult> getCurrentPlanning() {
+        if (currentPlanningResult == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(currentPlanningResult);
+    }
+
+    @GetMapping("/list-pdfs")
+    public ResponseEntity<List<String>> listGeneratedPdfs() {
+        File pdfsFolder = new File(servletContext.getRealPath("/pdfs/"));
+        File[] files = pdfsFolder.listFiles((dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".pdf"));
+        List<String> fileNames = files == null
+                ? Collections.emptyList()
+                : Arrays.stream(files).map(File::getName).sorted().toList();
+
+        return ResponseEntity.ok(fileNames);
     }
 
     @GetMapping("/list-pvs")

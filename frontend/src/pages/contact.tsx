@@ -36,7 +36,7 @@ function Contact() {
               <strong className="accent">Email:</strong> contact@ensah.ac.ma
             </p>
             <p className="card-text mb-2">
-              <strong className="accent">Téléphone:</strong> +212 5XX XX XX XX
+              <strong className="accent">Téléphone:</strong> +212 6XX XX XX XX
             </p>
             <p className="card-text mb-0">
               <strong className="accent">Adresse:</strong> École Nationale des Sciences Appliquées, Al Hoceima
