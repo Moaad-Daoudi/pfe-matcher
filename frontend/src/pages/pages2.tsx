@@ -31,16 +31,9 @@ function Pages2() {
   const [expandedProf, setExpandedProf] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const assignments = routeState?.affectation?.assignments;
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    console.log("Structure des données reçues :", assignments);
-  }, [assignments]);
-
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       const [pdfsRes, pvsRes] = await Promise.all([
         fetch(`${API_BASE}/api/soutenances/list-pdfs`),
@@ -69,13 +62,13 @@ function Pages2() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const viewPdf = (url: string) => {
+  function viewPdf(url: string) {
     window.open(url, "_blank");
-  };
+  }
 
-  const getGeneratedPdfFallbacks = async () => {
+  async function getGeneratedPdfFallbacks() {
     const fileNames = new Set<string>();
 
     if (routeState?.affectation) {
@@ -110,9 +103,9 @@ function Pages2() {
     ]);
 
     return Array.from(fileNames);
-  };
+  }
 
-  const addPdfIfAvailable = async (fileNames: Set<string>, fileName: string) => {
+  async function addPdfIfAvailable(fileNames: Set<string>, fileName: string) {
     try {
       const response = await fetch(getPdfUrl(fileName), { method: "HEAD" });
       if (response.ok) {
@@ -121,15 +114,24 @@ function Pages2() {
     } catch (error) {
       console.error(`Error checking PDF ${fileName}:`, error);
     }
-  };
+  }
 
-  const getPdfUrl = (fileName: string) => {
+  function getPdfUrl(fileName: string) {
     const encodedName = encodeURIComponent(fileName);
     const endpoint = fileName === "affectation_final.pdf" ? "affectations" : "soutenances";
     return `${API_BASE}/api/${endpoint}/view/${encodedName}`;
-  };
+  }
 
-  const downloadPv = (profName: string, fileName: string) => {
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    console.log("Structure des données reçues :", assignments);
+  }, [assignments]);
+
+  function downloadPv(profName: string, fileName: string) {
     const link = document.createElement("a");
     link.href = `${API_BASE}/api/soutenances/download-pv/${encodeURIComponent(profName)}/${encodeURIComponent(fileName)}`;
     link.download = fileName;
