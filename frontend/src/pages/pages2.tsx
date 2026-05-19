@@ -200,7 +200,7 @@ function Pages2() {
 
           {Object.keys(pvsByProf).length > 0 ? (
             <div className="accordion" id="pvsAccordion">
-              {Object.entries(pvsByProf).map(([ profName, pvFiles ], idx) => (
+              {Object.entries(pvsByProf).map(([profName, pvFiles], idx) => (
                 <div key={profName} className="accordion-item">
                   <h2 className="accordion-header">
                     <button
@@ -217,7 +217,7 @@ function Pages2() {
                       )}
                     </button>
                   </h2>
-                  <div 
+                  <div
                     id={`accordion-${idx}`}
                     className={`accordion-collapse collapse ${expandedProf === profName ? 'show' : ''}`}
                     data-bs-parent="#pvsAccordion"

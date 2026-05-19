@@ -27,12 +27,12 @@ function Home() {
       const formData = new FormData();
       formData.append("studentFile", file1);
       formData.append("profFile", file2);
-      
+
       const affectationRes = await axios.post(`${API_BASE}/api/affectations/process`, formData);
 
       if (!affectationRes.data || !affectationRes.data.assignments) {
-            throw new Error("Le backend n'a retourné aucune affectation.");
-        }
+        throw new Error("Le backend n'a retourné aucune affectation.");
+      }
 
       // 2. Generate Planning
       const planningPayload = {
@@ -44,17 +44,17 @@ function Home() {
       const planningRes = await axios.post(`${API_BASE}/api/soutenances/generate`, planningPayload);
 
       // 3. Navigate to planning after backend generated data
-      navigate("/planing", { 
-        state: { 
-          affectation: affectationRes.data, 
-          planning: planningRes.data 
-        } 
+      navigate("/planing", {
+        state: {
+          affectation: affectationRes.data,
+          planning: planningRes.data
+        }
       });
 
     } catch (err: any) {
-        const msg = err.response?.data?.message || err.message;
-        alert("Erreur: " + msg); 
-        setLoading(false);
+      const msg = err.response?.data?.message || err.message;
+      alert("Erreur: " + msg);
+      setLoading(false);
     } finally {
       setLoading(false);
     }
