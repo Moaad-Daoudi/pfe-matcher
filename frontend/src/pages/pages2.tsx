@@ -29,6 +29,8 @@ function Pages2() {
   const [pvsByProf, setPvsByProf] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [expandedProf, setExpandedProf] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -194,13 +196,41 @@ function Pages2() {
 
         {/* PVs SECTION */}
         <div className="mt-5">
-          <h5 className="section-title mb-3">
-            Fichiers des Professeurs
-          </h5>
+          <div className="d-flex align-items-center justify-content-between mb-3 pb-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <h5 className="section-title mb-0" style={{ borderLeft: "4px solid #54a659", paddingLeft: "10px" }}>
+              Fichiers des Professeurs
+            </h5>
+            <div className="d-flex align-items-center gap-2">
+              {showSearch && (
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Rechercher un encadrant..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ width: "220px", backgroundColor: "#1e2a38", borderColor: "#54a659", color: "#e0e0e0" }}
+                  autoFocus
+                />
+              )}
+              <button
+                className="btn btn-sm d-flex align-items-center gap-1 text-white"
+                onClick={() => {
+                  setShowSearch(!showSearch);
+                  if (showSearch) setSearchQuery("");
+                }}
+                style={{ backgroundColor: "#54a659", borderColor: "#6fcf7f", fontWeight: "600" }}
+              >
+                <span>{showSearch ? "❌" : "🔍"}</span>
+                <span>{showSearch ? "Fermer" : "Rechercher"}</span>
+              </button>
+            </div>
+          </div>
 
           {Object.keys(pvsByProf).length > 0 ? (
             <div className="accordion" id="pvsAccordion">
-              {Object.entries(pvsByProf).map(([profName, pvFiles], idx) => (
+              {Object.entries(pvsByProf)
+                .filter(([profName]) => profName.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map(([profName, pvFiles], idx) => (
                 <div key={profName} className="accordion-item">
                   <h2 className="accordion-header">
                     <button

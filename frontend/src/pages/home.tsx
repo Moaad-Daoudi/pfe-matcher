@@ -8,6 +8,9 @@ import Navbar from "../components/Navbar";
 
 function Home() {
   const API_BASE = "http://localhost:8080/pfe-matcher";
+  const tomorrowObj = new Date();
+  tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+  const tomorrow = tomorrowObj.toISOString().split("T")[0];
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
   const [startDate, setStartDate] = useState("");
@@ -97,11 +100,23 @@ function Home() {
             <div className="row g-3">
               <div className="col-md-6">
                 <label className="form-label">Date début</label>
-                <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <input
+                  type="date"
+                  className="form-control"
+                  min={tomorrow}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </div>
               <div className="col-md-6">
                 <label className="form-label">Date fin</label>
-                <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <input
+                  type="date"
+                  className="form-control"
+                  min={startDate || tomorrow}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </div>
             </div>
           </div>
