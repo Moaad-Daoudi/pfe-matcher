@@ -89,7 +89,7 @@ public class SoutenanceController {
 
     @GetMapping("/view/{fileName}")
     public ResponseEntity<FileSystemResource> viewPlanningPdf(@PathVariable("fileName") String fileName) {
-        String folder = servletContext.getRealPath("/pdfs/");
+        String folder = servletContext.getRealPath("/upload/");
         File file = new File(folder + File.separator + fileName);
         if (!file.exists()) return ResponseEntity.notFound().build();
         return ResponseEntity.ok()
@@ -109,7 +109,7 @@ public class SoutenanceController {
 
     @GetMapping("/list-pdfs")
     public ResponseEntity<List<String>> listGeneratedPdfs() {
-        File pdfsFolder = new File(servletContext.getRealPath("/pdfs/"));
+        File pdfsFolder = new File(servletContext.getRealPath("/upload/"));
         File[] files = pdfsFolder.listFiles((dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".pdf"));
         List<String> fileNames = files == null
                 ? Collections.emptyList()

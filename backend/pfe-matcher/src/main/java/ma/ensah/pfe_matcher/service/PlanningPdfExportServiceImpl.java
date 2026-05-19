@@ -49,7 +49,7 @@ public class PlanningPdfExportServiceImpl implements PlanningPdfExportService {
 
     @Override
     public void generatePlanningPdf(List<Soutenance> soutenances, String fileName) throws Exception {
-        String folder = servletContext.getRealPath("/pdfs/");
+        String folder = servletContext.getRealPath("/upload/");
         File dir = new File(folder);
         if (!dir.exists()) {
             dir.mkdirs();

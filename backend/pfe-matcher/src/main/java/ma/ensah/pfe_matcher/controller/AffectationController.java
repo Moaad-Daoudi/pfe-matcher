@@ -110,7 +110,7 @@ public class AffectationController {
     @GetMapping("/view/{fileName}")
     public ResponseEntity<FileSystemResource> viewPdf(@PathVariable("fileName") String fileName) {
         // Get the same folder as your Service
-        String folder = servletContext.getRealPath("/pdfs/");
+        String folder = servletContext.getRealPath("/upload/");
         File file = new File(folder + File.separator + fileName);
 
         // Check if file exists

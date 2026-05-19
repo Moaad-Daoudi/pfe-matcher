@@ -35,7 +35,7 @@ public class PdfExportServiceImpl implements PdfExportService {
 
     @Override
     public void generateAssignmentPdf(List<Assignment> allAssignments, List<Professor> allProfessors, String fileName) throws Exception {
-        String folder = servletContext.getRealPath("/pdfs/");
+        String folder = servletContext.getRealPath("/upload/");
         java.io.File dir = new java.io.File(folder);
         if (!dir.exists()) {
             dir.mkdirs();
