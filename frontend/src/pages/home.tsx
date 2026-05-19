@@ -8,6 +8,9 @@ import Navbar from "../components/Navbar";
 
 function Home() {
   const API_BASE = "http://localhost:8080/pfe-matcher";
+  const tomorrowObj = new Date();
+  tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+  const tomorrow = tomorrowObj.toISOString().split("T")[0];
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
   const [startDate, setStartDate] = useState("");
@@ -27,12 +30,12 @@ function Home() {
       const formData = new FormData();
       formData.append("studentFile", file1);
       formData.append("profFile", file2);
-      
+
       const affectationRes = await axios.post(`${API_BASE}/api/affectations/process`, formData);
 
       if (!affectationRes.data || !affectationRes.data.assignments) {
-            throw new Error("Le backend n'a retourné aucune affectation.");
-        }
+        throw new Error("Le backend n'a retourné aucune affectation.");
+      }
 
       // 2. Generate Planning
       const planningPayload = {
@@ -44,17 +47,17 @@ function Home() {
       const planningRes = await axios.post(`${API_BASE}/api/soutenances/generate`, planningPayload);
 
       // 3. Navigate to planning after backend generated data
-      navigate("/planing", { 
-        state: { 
-          affectation: affectationRes.data, 
-          planning: planningRes.data 
-        } 
+      navigate("/planing", {
+        state: {
+          affectation: affectationRes.data,
+          planning: planningRes.data
+        }
       });
 
     } catch (err: any) {
-        const msg = err.response?.data?.message || err.message;
-        alert("Erreur: " + msg); 
-        setLoading(false);
+      const msg = err.response?.data?.message || err.message;
+      alert("Erreur: " + msg);
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -97,11 +100,23 @@ function Home() {
             <div className="row g-3">
               <div className="col-md-6">
                 <label className="form-label">Date début</label>
-                <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <input
+                  type="date"
+                  className="form-control"
+                  min={tomorrow}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </div>
               <div className="col-md-6">
                 <label className="form-label">Date fin</label>
-                <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <input
+                  type="date"
+                  className="form-control"
+                  min={startDate || tomorrow}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </div>
             </div>
           </div>

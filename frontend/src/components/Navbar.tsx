@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import LogoUAE from "../assets/logo-uae-petit-format.png";
 
 const navbarStyles = `
   .custom-navbar-gradient {
@@ -35,7 +36,10 @@ function Navbar({ activePage, dashboardState }: NavbarProps) {
       <style>{navbarStyles}</style>
       <nav className="navbar navbar-expand-lg navbar-dark custom-navbar-gradient">
         <div className="container-fluid">
-          <Link className="navbar-brand" to="/">PFE ENSAH</Link>
+          <Link className="navbar-brand d-flex align-items-center gap-2" to="/">
+            <img src={LogoUAE} alt="UAE Logo" style={{ height: "35px", width: "auto" }} />
+            <span>PFE ENSAH</span>
+          </Link>
           <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span className="navbar-toggler-icon"></span>
           </button>
