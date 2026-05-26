@@ -238,12 +238,10 @@ function Dashboard() {
   const maxDefensesPerProf = Math.max(1, ...Object.values(defensesPerProf));
 
   const totalStudents = assignments.length;
-  const totalDefenses = Number(planning.stats?.totalSoutenances ?? soutenances.length);
   const totalViolations = Number(planning.stats?.totalViolations ?? 0);
   const totalSpecialties = Object.keys(fieldStats).length;
   const totalProfessors = Object.keys(studentsPerProf).length;
   const maxStudentsPerProf = Math.max(1, ...Object.values(studentsPerProf));
-  const maxFieldCount = Math.max(1, ...Object.values(fieldStats));
   const maxRoomCount = Math.max(1, ...Object.values(soutenancesPerRoom));
 
   return (
@@ -262,7 +260,7 @@ function Dashboard() {
           <div className="col-md-4">
             <div className="card custom-card h-100 border-success">
               <div className="card-body text-center">
-                <h5 className="card-title text-success mb-2">🎓 Total Etudiants</h5>
+                <h5 className="card-title text-success mb-2">Total Etudiants</h5>
                 <h2 className="text-white fw-bold">{totalStudents}</h2>
               </div>
             </div>
@@ -270,7 +268,7 @@ function Dashboard() {
           <div className="col-md-4">
             <div className="card custom-card h-100 border-info">
               <div className="card-body text-center">
-                <h5 className="card-title text-info mb-2">👨‍🏫 Total Professeurs</h5>
+                <h5 className="card-title text-info mb-2">Total Professeurs</h5>
                 <h2 className="text-white fw-bold">{totalProfessors}</h2>
               </div>
             </div>
@@ -278,7 +276,7 @@ function Dashboard() {
           <div className="col-md-4">
             <div className="card custom-card h-100 border-warning">
               <div className="card-body text-center">
-                <h5 className="card-title text-warning mb-2">🏫 Filieres</h5>
+                <h5 className="card-title text-warning mb-2">Filieres</h5>
                 <h2 className="text-white fw-bold">{totalSpecialties}</h2>
               </div>
             </div>

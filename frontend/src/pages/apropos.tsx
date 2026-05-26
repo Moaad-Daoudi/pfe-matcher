@@ -1,37 +1,8 @@
 import Navbar from "../components/Navbar";
 
-const styles = `
-  .pg { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #fff; min-height: 100vh; }
-  .hero-dark { background: #132030; border-bottom: 1px solid #1e3245; padding: 2.5rem 2rem 2rem; text-align: center; }
-  .hero-dark h1 { font-size: 1.8rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; letter-spacing: -0.3px; }
-  .hero-dark p { font-size: 14px; color: #8fa8be; }
-  .content { padding: 2rem 1.5rem; max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
-  .card-d { background: #132030; border: 1px solid #1e3245; border-radius: 10px; padding: 1.25rem 1.5rem; }
-  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 0.85rem; padding-bottom: 0.75rem; border-bottom: 1px solid #1e3245; }
-  .card-head-icon {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.25);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .card-head-icon svg { width: 16px; height: 16px; stroke: #00e676; fill: none; stroke-width: 2; }
-  .card-head-title { font-size: 14px; font-weight: 600; color: #00e676; letter-spacing: 0.2px; }
-  .card-text { font-size: 13px; color: #8fa8be; line-height: 1.7; }
-  .items-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
-  .item-pill { display: flex; align-items: center; gap: 8px; background: #0f1923; border: 1px solid #1e3245; border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #c8dae8; }
-  .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: #00b4d8; flex-shrink: 0; }
-  .tech-row { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tech-tag { font-size: 12px; font-weight: 500; color: #00b4d8; background: rgba(0,180,216,0.1); border: 1px solid rgba(0,180,216,0.25); border-radius: 99px; padding: 4px 12px; }
-  .supervisor-row { display: flex; align-items: center; gap: 12px; background: #0f1923; border: 1px solid #1e3245; border-radius: 8px; padding: 12px 14px; margin-top: 0.75rem; }
-  .sup-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(0,230,118,0.15); border: 1px solid rgba(0,230,118,0.3); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #00e676; flex-shrink: 0; }
-  .sup-name { font-size: 14px; font-weight: 600; color: #fff; }
-  .sup-role { font-size: 12px; color: #8fa8be; margin-top: 2px; }
-  .accent { color: #00e676; }
-`;
-
 function About() {
   return (
     <>
-      <style>{styles}</style>
       <div className="pg">
 
         {/* NAVBAR */}
@@ -110,8 +81,8 @@ function About() {
               <span className="card-head-title">Contexte académique</span>
             </div>
             <p className="card-text">
-              Projet réalisé à l'ENSAH par des étudiants en ingénierie TDAI, dans le cadre d'un module
-              de développement web appliqué à la transformation digitale.
+              Projet réalisé à l'ENSAH par des étudiants en ingénierie TDAI, dans le cadre de notre module
+              de développement web appliqué.
             </p>
             <div className="supervisor-row">
               <div className="sup-avatar">MC</div>

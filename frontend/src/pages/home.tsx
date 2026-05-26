@@ -40,9 +40,7 @@ function Home() {
       // 2. Generate Planning
       const planningPayload = {
         startDate: startDate,
-        endDate: endDate,
-        durationMinutes: 60,
-        salles: ["S4A", "S5A", "S16A", "S17A", "AMPHI A"]
+        endDate: endDate
       };
       const planningRes = await axios.post(`${API_BASE}/api/soutenances/generate`, planningPayload);
 

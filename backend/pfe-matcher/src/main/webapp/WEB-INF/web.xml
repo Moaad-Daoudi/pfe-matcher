@@ -37,16 +37,6 @@
         </multipart-config>
     </servlet>
 
-    <filter>
-        <filter-name>corsFilter</filter-name>
-        <filter-class>ma.ensah.pfe_matcher.config.CorsFilter</filter-class>
-    </filter>
-
-    <filter-mapping>
-        <filter-name>corsFilter</filter-name>
-        <url-pattern>/*</url-pattern>
-    </filter-mapping>
-
     <!-- Map all requests -->
     <servlet-mapping>
         <servlet-name>spring</servlet-name>

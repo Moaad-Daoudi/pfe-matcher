@@ -9,6 +9,7 @@ import ma.ensah.pfe_matcher.model.TimeSlot;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -32,7 +33,7 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
     private static final LocalTime AFTERNOON_START = LocalTime.of(14, 0);
     private static final LocalTime AFTERNOON_END = LocalTime.of(18, 0);
 
-    private static final List<String> DEFAULT_SALLES = List.of("S4A", "S5A", "S16A", "S17A", "AMPHI A");
+    private static final List<String> DEFAULT_SALLES = List.of("S4A", "S5A", "S16A", "S17A", "AMPHI A","S7A");
 
     @Autowired
     private AssignmentDAO assignmentDAO;
@@ -66,18 +67,37 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                         LinkedHashMap::new,
                         Collectors.toList()
                 ));
-        for (Map.Entry<LocalDate, List<TimeSlot>> entry : slotsByDate.entrySet()) {
-            entry.getValue().sort(Comparator.comparing(TimeSlot::getStartTime));
-            counter = scheduleDayRoundRobin(
-                    entry.getValue(),
-                    schedulingOrder,
-                    assignmentsByField,
-                    salles,
-                    professorPool,
-                    planned,
-                    counter
-            );
+        
+        List<List<TimeSlot>> days = new ArrayList<>(slotsByDate.values());
+        for (List<TimeSlot> daySlots : days) {
+            daySlots.sort(Comparator.comparing(TimeSlot::getStartTime));
         }
+
+        boolean placedInGlobalCycle;
+        do {
+            placedInGlobalCycle = false;
+            for (List<TimeSlot> daySlots : days) {
+                for (String field : schedulingOrder) {
+                    Deque<Assignment> queue = assignmentsByField.get(field);
+                    if (queue == null || queue.isEmpty()) {
+                        continue;
+                    }
+                    Soutenance placed = tryPlaceFromFieldQueue(
+                            queue,
+                            counter,
+                            professorPool,
+                            daySlots,
+                            salles,
+                            planned
+                    );
+                    if (placed != null) {
+                        planned.add(placed);
+                        counter++;
+                        placedInGlobalCycle = true;
+                    }
+                }
+            }
+        } while (placedInGlobalCycle);
 
         if (hasRemainingAssignments(assignmentsByField)) {
             throw new IllegalArgumentException(
@@ -157,6 +177,9 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                 .filter(p -> !sameProfessor(p, encadrant))
                 .collect(Collectors.toList());
 
+        // Organize candidates by combining with a workload count, sorting them by workload ascending
+        candidates.sort(Comparator.comparingInt(p -> getProfessorSoutenanceCount(p, planned)));
+
         for (int i = 0; i < candidates.size(); i++) {
             for (int j = i + 1; j < candidates.size(); j++) {
                 Professor jury1 = candidates.get(i);
@@ -170,6 +193,16 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
             }
         }
         return null;
+    }
+
+    private int getProfessorSoutenanceCount(Professor professor, List<Soutenance> planned) {
+        int count = 0;
+        for (Soutenance s : planned) {
+            if (involvesProfessor(s, professor)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private boolean isRoomAvailable(String room, TimeSlot slot, List<Soutenance> planned) {
@@ -216,11 +249,16 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
 
     private List<LocalDate> resolveDates(PlanningRequest request) {
         if (request.getDates() != null && !request.getDates().isEmpty()) {
-            return request.getDates().stream()
+            List<LocalDate> dates = request.getDates().stream()
                     .map(this::parseDate)
+                    .filter(this::isPlanningDay)
                     .distinct()
                     .sorted()
                     .collect(Collectors.toList());
+            if (dates.isEmpty()) {
+                throw new IllegalArgumentException("aucune date disponible apres exclusion du dimanche.");
+            }
+            return dates;
         }
 
         if (request.getStartDate() == null || request.getEndDate() == null) {
@@ -236,10 +274,19 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
         List<LocalDate> result = new ArrayList<>();
         LocalDate cursor = start;
         while (!cursor.isAfter(end)) {
-            result.add(cursor);
+            if (isPlanningDay(cursor)) {
+                result.add(cursor);
+            }
             cursor = cursor.plusDays(1);
         }
+        if (result.isEmpty()) {
+            throw new IllegalArgumentException("aucune date disponible apres exclusion du dimanche.");
+        }
         return result;
+    }
+
+    private boolean isPlanningDay(LocalDate date) {
+        return date != null && date.getDayOfWeek() != DayOfWeek.SUNDAY;
     }
 
     private List<String> resolveSalles(PlanningRequest request) {
@@ -310,40 +357,6 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
             }
         }
         return order;
-    }
-
-    private int scheduleDayRoundRobin(List<TimeSlot> daySlots,
-                                      List<String> schedulingOrder,
-                                      Map<String, Deque<Assignment>> assignmentsByField,
-                                      List<String> salles,
-                                      List<Professor> professorPool,
-                                      List<Soutenance> planned,
-                                      int counter) {
-        boolean placedInCycle;
-        do {
-            placedInCycle = false;
-            for (String field : schedulingOrder) {
-                Deque<Assignment> queue = assignmentsByField.get(field);
-                if (queue == null || queue.isEmpty()) {
-                    continue;
-                }
-                Soutenance placed = tryPlaceFromFieldQueue(
-                        queue,
-                        counter,
-                        professorPool,
-                        daySlots,
-                        salles,
-                        planned
-                );
-                if (placed != null) {
-                    planned.add(placed);
-                    counter++;
-                    placedInCycle = true;
-                }
-            }
-        } while (placedInCycle);
-
-        return counter;
     }
 
     private Soutenance tryPlaceFromFieldQueue(Deque<Assignment> queue,
