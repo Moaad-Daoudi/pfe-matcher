@@ -1,4 +1,5 @@
 import Navbar from "../components/Navbar";
+import { Info, CheckCircle, Code, GraduationCap } from "lucide-react";
 
 function About() {
   return (
@@ -21,7 +22,7 @@ function About() {
           <div className="card-d">
             <div className="card-head">
               <div className="card-head-icon">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                <Info size={24} strokeWidth={2} />
               </div>
               <span className="card-head-title">Présentation</span>
             </div>
@@ -36,7 +37,7 @@ function About() {
           <div className="card-d">
             <div className="card-head">
               <div className="card-head-icon">
-                <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                <CheckCircle size={24} strokeWidth={2} />
               </div>
               <span className="card-head-title">Ce que fait l'application</span>
             </div>
@@ -61,7 +62,7 @@ function About() {
           <div className="card-d">
             <div className="card-head">
               <div className="card-head-icon">
-                <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                <Code size={24} strokeWidth={2} />
               </div>
               <span className="card-head-title">Technologies</span>
             </div>
@@ -76,7 +77,7 @@ function About() {
           <div className="card-d">
             <div className="card-head">
               <div className="card-head-icon">
-                <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                <GraduationCap size={24} strokeWidth={2} />
               </div>
               <span className="card-head-title">Contexte académique</span>
             </div>

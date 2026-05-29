@@ -11,6 +11,7 @@ import jakarta.servlet.ServletContext;
 import ma.ensah.pfe_matcher.model.Assignment;
 import ma.ensah.pfe_matcher.model.Professor;
 import ma.ensah.pfe_matcher.model.Student;
+import ma.ensah.pfe_matcher.util.ColorUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,9 +25,6 @@ public class PdfExportServiceImpl implements PdfExportService {
 
     @Autowired
     private ServletContext servletContext;
-
-    @Autowired 
-    private ConfigService configService;
 
     // Define allowed departments here
     // private static final Set<String> ALLOWED_DEPARTMENTS = new HashSet<>(
@@ -47,10 +45,7 @@ public class PdfExportServiceImpl implements PdfExportService {
         Document document = new Document(pdf, PageSize.A4.rotate());
 
         // --- SORTING LOGIC ---
-        List<String> allowedDepts = configService.getAllowedDepartments();
         List<Professor> sortedProfessors = allProfessors.stream()
-                .filter(p -> allowedDepts.stream()
-                        .anyMatch(dept -> p.getDepartment().toUpperCase().contains(dept.toUpperCase())))
                 .sorted(Comparator.comparing(Professor::getLastname, String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toList());
 
@@ -60,7 +55,7 @@ public class PdfExportServiceImpl implements PdfExportService {
         document.add(new Paragraph("Affectation des encadrants de Projet de Fin d'Etude").setBold());
         document.add(new Paragraph("Année Universitaire 2024/2025").setFontSize(10));
 
-        addLegend(document);
+        addLegend(document, allAssignments);
         document.add(new Paragraph(" "));
 
         // Define Table Layout (Fixed to 6 columns)
@@ -91,7 +86,7 @@ public class PdfExportServiceImpl implements PdfExportService {
                     Student s = profAssignments.get(i).getStudent();
                     Cell cell = new Cell().add(new Paragraph(s.getLastname() + " " + s.getFirstname()).setFontSize(8));
 
-                    String hexColor = configService.getCouleur(s.getField());
+                    String hexColor = ColorUtil.getCouleur(s.getField());
                     java.awt.Color awtColor = java.awt.Color.decode(hexColor);
                     cell.setBackgroundColor(new DeviceRgb(awtColor.getRed()/255f, awtColor.getGreen()/255f, awtColor.getBlue()/255f));
                     table.addCell(cell);
@@ -105,15 +100,19 @@ public class PdfExportServiceImpl implements PdfExportService {
         document.close();
     }
 
-    private void addLegend(Document document) {
-        // Fetch all known filiere codes to build the legend dynamically
-        List<String> codes = configService.getAllFiliereCodes();
+    private void addLegend(Document document, List<Assignment> assignments) {
+        // Build unique filieres based on extracted data
+        Set<String> uniqueCodes = assignments.stream()
+                .filter(a -> a.getStudent() != null)
+                .map(a -> a.getStudent().getField())
+                .collect(Collectors.toSet());
+        List<String> codes = new ArrayList<>(uniqueCodes);
         
         Table legendTable = new Table(codes.size() > 0 ? codes.size() : 1);
         legendTable.setWidth(UnitValue.createPercentValue(45));
 
         for (String code : codes) {
-            String hexColor = configService.getCouleur(code);
+            String hexColor = ColorUtil.getCouleur(code);
             java.awt.Color awtColor = java.awt.Color.decode(hexColor);
             DeviceRgb rgb = new DeviceRgb(awtColor.getRed() / 255f, awtColor.getGreen() / 255f, awtColor.getBlue() / 255f);
             

@@ -3,6 +3,8 @@ package ma.ensah.pfe_matcher.service;
 import ma.ensah.pfe_matcher.dao.PVDAOImpl;
 import ma.ensah.pfe_matcher.model.PV;
 import ma.ensah.pfe_matcher.model.Soutenance;
+import ma.ensah.pfe_matcher.model.Professor;
+import ma.ensah.pfe_matcher.model.Student;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
@@ -19,6 +21,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -28,23 +32,58 @@ public class PVMetierImpl implements PVMetier {
     private PVDAOImpl pvDao;
 
     @Override
-    public void generatePVsFromSoutenances(List<Soutenance> soutenances, String realPath) {
+    public void generatePVsFromSoutenances(List<Soutenance> soutenances, String realPath) throws IOException {
         for (Soutenance s : soutenances) {
-            PV pv = new PV();
-            pv.setNom(s.getAssignment().getStudent().getLastname());
-            pv.setPrenom(s.getAssignment().getStudent().getFirstname());
-            pv.setFiliere(s.getAssignment().getStudent().getField());
-            pv.setEncadrant(s.getEncadrant().getLastname() + " " + s.getEncadrant().getFirstname());
-            pv.setJury1(s.getJury1().getLastname() + " " + s.getJury1().getFirstname());
-            pv.setJury2(s.getJury2().getLastname() + " " + s.getJury2().getFirstname());
-            pv.setDate(s.getDate().toString());
+            // Student 1
+            generateIndividualPV(s, s.getAssignment().getStudent(), s.getAssignment().getProfessor(), realPath);
 
-            try {
-                processWordDocument(pv, realPath);
-            } catch (IOException e) {
-                System.err.println("Error creating PV for: " + pv.getNom());
-                e.printStackTrace();
+            // Student 2 (If binôme)
+            if (s.getAssignment().getStudent2() != null) {
+                generateIndividualPV(s, s.getAssignment().getStudent2(), 
+                    s.getAssignment().getProfessor2() != null ? s.getAssignment().getProfessor2() : s.getAssignment().getProfessor(), 
+                    realPath);
             }
+        }
+    }
+
+    private void generateIndividualPV(Soutenance s, Student student, Professor studentProf, String realPath) {
+        PV pv = new PV();
+
+        pv.setNom(student.getLastname());
+        pv.setPrenom(student.getFirstname());
+        pv.setFiliere(student.getField());
+        pv.setEncadrant(studentProf.getLastname() + " " + studentProf.getFirstname());
+
+        // We need 2 examiners from the soutenance members that are NOT the student's own prof.
+        List<Professor> allJury = new ArrayList<>();
+        if (s.getEncadrant() != null) allJury.add(s.getEncadrant());
+        if (s.getJury1() != null) allJury.add(s.getJury1());
+        if (s.getJury2() != null) allJury.add(s.getJury2());
+
+        List<Professor> examiners = allJury.stream()
+                .filter(p -> p != null && !p.getId().equalsIgnoreCase(studentProf.getId()))
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (examiners.size() > 0) {
+            pv.setJury1(examiners.get(0).getLastname() + " " + examiners.get(0).getFirstname());
+        } else {
+            pv.setJury1(" ");
+        }
+
+        if (examiners.size() > 1) {
+            pv.setJury2(examiners.get(1).getLastname() + " " + examiners.get(1).getFirstname());
+        } else {
+            pv.setJury2(" ");
+        }
+
+        pv.setDate(s.getDate() != null ? s.getDate().toString() : "");
+
+        try {
+            processWordDocument(pv, realPath);
+        } catch (IOException e) {
+            System.err.println("Error creating PV for: " + pv.getNom());
+            e.printStackTrace();
         }
     }
 

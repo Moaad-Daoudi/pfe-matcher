@@ -6,6 +6,7 @@ import ma.ensah.pfe_matcher.model.PlanningRequest;
 import ma.ensah.pfe_matcher.model.Professor;
 import ma.ensah.pfe_matcher.model.Soutenance;
 import ma.ensah.pfe_matcher.model.TimeSlot;
+import ma.ensah.pfe_matcher.util.ColorUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,38 +18,93 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 public class PlanningGenerationServiceImpl implements PlanningGenerationService {
 
-    @Autowired
-    private ConfigService configService;
+// Removed ConfigService dependency
 
-    private static final DateTimeFormatter[] DATE_FORMATS = new DateTimeFormatter[]{
+    @Value("${planning.morning.start}")
+    private String morningStartProp;
+
+    @Value("${planning.morning.end}")
+    private String morningEndProp;
+
+    @Value("${planning.afternoon.start}")
+    private String afternoonStartProp;
+
+    @Value("${planning.afternoon.end}")
+    private String afternoonEndProp;
+
+    @Value("${planning.duration.minutes}")
+    private int defaultDurationMinutes;
+
+    private static final DateTimeFormatter[] DATE_FORMATS = new DateTimeFormatter[] {
             DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ofPattern("dd/MM/yyyy")
     };
 
-    private static final LocalTime MORNING_START = LocalTime.of(9, 0);
-    private static final LocalTime MORNING_END = LocalTime.of(12, 0);
-    private static final LocalTime AFTERNOON_START = LocalTime.of(14, 0);
-    private static final LocalTime AFTERNOON_END = LocalTime.of(18, 0);
-
-    private static final List<String> DEFAULT_SALLES = List.of("S4A", "S5A", "S16A", "S17A", "AMPHI A","S7A");
+    @Value("${planning.salles}")
+    private String sallesProp;
 
     @Autowired
     private AssignmentDAO assignmentDAO;
 
     @Override
     public List<Soutenance> generatePlanning(PlanningRequest request) {
-        List<Assignment> assignments = assignmentDAO.getAll();
-        if (assignments.isEmpty()) {
+        List<Assignment> rawAssignments = assignmentDAO.getAll();
+        if (rawAssignments.isEmpty()) {
             throw new IllegalArgumentException("Aucune tache disponible. Executez d'abord l'affectation.");
         }
 
-        int duration = request.getDurationMinutes() > 0 ? request.getDurationMinutes() : 60;
+        // --- MERGE BINOMES ---
+        List<Assignment> assignments = new ArrayList<>();
+        Set<String> processedStudentIds = new HashSet<>();
+
+        List<List<String>> binomes = request.getBinomes() != null ? request.getBinomes() : new ArrayList<>();
+
+        for (Assignment a : rawAssignments) {
+            if (a.getStudent() == null || processedStudentIds.contains(a.getStudent().getId())) {
+                continue;
+            }
+
+            // Check if this student is in a binome
+            String binomePartnerId = null;
+            for (List<String> b : binomes) {
+                if (b.size() >= 2) {
+                    if (b.get(0).equals(a.getStudent().getId()))
+                        binomePartnerId = b.get(1);
+                    else if (b.get(1).equals(a.getStudent().getId()))
+                        binomePartnerId = b.get(0);
+                }
+            }
+
+            if (binomePartnerId != null) {
+                final String pId = binomePartnerId;
+                Optional<Assignment> partnerAssign = rawAssignments.stream()
+                        .filter(ra -> rawAssignments != null && ra.getStudent() != null
+                                && ra.getStudent().getId().equals(pId))
+                        .findFirst();
+
+                if (partnerAssign.isPresent()) {
+                    a.setStudent2(partnerAssign.get().getStudent());
+                    if (!partnerAssign.get().getProfessor().getId().equals(a.getProfessor().getId())) {
+                        a.setProfessor2(partnerAssign.get().getProfessor());
+                    }
+                    processedStudentIds.add(partnerAssign.get().getStudent().getId());
+                }
+            }
+
+            assignments.add(a);
+            processedStudentIds.add(a.getStudent().getId());
+        }
+        // --- END MERGE ---
+
+        int duration = request.getDurationMinutes() > 0 ? request.getDurationMinutes() : defaultDurationMinutes;
         List<LocalDate> dates = resolveDates(request);
         List<String> salles = resolveSalles(request);
-        List<TimeSlot> slots = buildSlots(dates, duration);
+        List<TimeSlot> slots = buildSlots(dates, duration, request);
         List<Professor> professorPool = buildProfessorPool(assignments);
 
         if (professorPool.size() < 3) {
@@ -65,9 +121,8 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                 .collect(Collectors.groupingBy(
                         TimeSlot::getDate,
                         LinkedHashMap::new,
-                        Collectors.toList()
-                ));
-        
+                        Collectors.toList()));
+
         List<List<TimeSlot>> days = new ArrayList<>(slotsByDate.values());
         for (List<TimeSlot> daySlots : days) {
             daySlots.sort(Comparator.comparing(TimeSlot::getStartTime));
@@ -88,8 +143,7 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                             professorPool,
                             daySlots,
                             salles,
-                            planned
-                    );
+                            planned);
                     if (placed != null) {
                         planned.add(placed);
                         counter++;
@@ -101,8 +155,7 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
 
         if (hasRemainingAssignments(assignmentsByField)) {
             throw new IllegalArgumentException(
-                    "Pas assez de capacite pour planifier toutes les soutenances avec une repartition quotidienne par filiere."
-            );
+                    "Pas assez de capacite pour planifier toutes les soutenances avec une repartition quotidienne par filiere.");
         }
 
         planned.sort(Comparator.comparing(Soutenance::getDate)
@@ -127,12 +180,12 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
     }
 
     private Soutenance placeOneSoutenance(int counter,
-                                          Assignment assignment,
-                                          Professor encadrant,
-                                          List<Professor> pool,
-                                          List<TimeSlot> slots,
-                                          List<String> salles,
-                                          List<Soutenance> planned) {
+            Assignment assignment,
+            Professor encadrant,
+            List<Professor> pool,
+            List<TimeSlot> slots,
+            List<String> salles,
+            List<Soutenance> planned) {
         for (TimeSlot slot : slots) {
             for (String room : salles) {
                 if (!isRoomAvailable(room, slot, planned)) {
@@ -141,8 +194,12 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                 if (!isProfessorAvailable(encadrant, slot, planned)) {
                     continue;
                 }
+                if (assignment.getProfessor2() != null
+                        && !isProfessorAvailable(assignment.getProfessor2(), slot, planned)) {
+                    continue;
+                }
 
-                List<Professor> jury = findAvailableJury(encadrant, pool, slot, planned);
+                List<Professor> jury = findAvailableJury(encadrant, assignment.getProfessor2(), pool, slot, planned);
                 if (jury == null) {
                     continue;
                 }
@@ -150,8 +207,8 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                 String generatedId = assignment.getStudent() != null
                         && assignment.getStudent().getId() != null
                         && !assignment.getStudent().getId().isBlank()
-                        ? assignment.getStudent().getId().trim()
-                        : String.valueOf(counter);
+                                ? assignment.getStudent().getId().trim()
+                                : String.valueOf(counter);
 
                 return new Soutenance(
                         generatedId,
@@ -162,23 +219,35 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                         slot.getDate(),
                         slot.getStartTime(),
                         slot.getEndTime(),
-                        room
-                );
+                        room);
             }
         }
         return null;
     }
 
     private List<Professor> findAvailableJury(Professor encadrant,
-                                              List<Professor> pool,
-                                              TimeSlot slot,
-                                              List<Soutenance> planned) {
+            Professor encadrant2,
+            List<Professor> pool,
+            TimeSlot slot,
+            List<Soutenance> planned) {
         List<Professor> candidates = pool.stream()
                 .filter(p -> !sameProfessor(p, encadrant))
+                .filter(p -> encadrant2 == null || !sameProfessor(p, encadrant2))
                 .collect(Collectors.toList());
 
-        // Organize candidates by combining with a workload count, sorting them by workload ascending
+        // Organize candidates by combining with a workload count, sorting them by
+        // workload ascending
         candidates.sort(Comparator.comparingInt(p -> getProfessorSoutenanceCount(p, planned)));
+
+        if (encadrant2 != null) {
+            for (int i = 0; i < candidates.size(); i++) {
+                Professor jury2 = candidates.get(i);
+                if (isProfessorAvailable(jury2, slot, planned)) {
+                    return List.of(encadrant2, jury2);
+                }
+            }
+            return null;
+        }
 
         for (int i = 0; i < candidates.size(); i++) {
             for (int j = i + 1; j < candidates.size(); j++) {
@@ -270,7 +339,7 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
         if (end.isBefore(start)) {
             throw new IllegalArgumentException("endDate doit etre posterieur ou egal a startDate.");
         }
-        
+
         List<LocalDate> result = new ArrayList<>();
         LocalDate cursor = start;
         while (!cursor.isAfter(end)) {
@@ -291,7 +360,12 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
 
     private List<String> resolveSalles(PlanningRequest request) {
         if (request.getSalles() == null || request.getSalles().isEmpty()) {
-            return new ArrayList<>(DEFAULT_SALLES);
+            // Fall back to the comma-separated list from application.properties
+            return Arrays.stream(sallesProp.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .distinct()
+                    .collect(Collectors.toList());
         }
 
         return request.getSalles().stream()
@@ -302,20 +376,34 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                 .collect(Collectors.toList());
     }
 
-    private List<TimeSlot> buildSlots(List<LocalDate> dates, int durationMinutes) {
+    private List<TimeSlot> buildSlots(List<LocalDate> dates, int durationMinutes, PlanningRequest request) {
         List<TimeSlot> slots = new ArrayList<>();
+        // Use request value if provided, otherwise fall back to application.properties
+        LocalTime morningStart   = resolveTime(request.getMorningStart(),   morningStartProp);
+        LocalTime morningEnd     = resolveTime(request.getMorningEnd(),     morningEndProp);
+        LocalTime afternoonStart = resolveTime(request.getAfternoonStart(), afternoonStartProp);
+        LocalTime afternoonEnd   = resolveTime(request.getAfternoonEnd(),   afternoonEndProp);
+
         for (LocalDate date : dates) {
-            addWindowSlots(slots, date, MORNING_START, MORNING_END, durationMinutes);
-            addWindowSlots(slots, date, AFTERNOON_START, AFTERNOON_END, durationMinutes);
+            addWindowSlots(slots, date, morningStart, morningEnd, durationMinutes);
+            addWindowSlots(slots, date, afternoonStart, afternoonEnd, durationMinutes);
         }
         return slots;
     }
 
+    /** Returns the parsed request value when non-blank, otherwise parses the property fallback. */
+    private LocalTime resolveTime(String requestValue, String propertyFallback) {
+        if (requestValue != null && !requestValue.isBlank()) {
+            return LocalTime.parse(requestValue.trim());
+        }
+        return LocalTime.parse(propertyFallback);
+    }
+
     private void addWindowSlots(List<TimeSlot> slots,
-                                LocalDate date,
-                                LocalTime windowStart,
-                                LocalTime windowEnd,
-                                int durationMinutes) {
+            LocalDate date,
+            LocalTime windowStart,
+            LocalTime windowEnd,
+            int durationMinutes) {
         LocalTime start = windowStart;
         while (!start.plusMinutes(durationMinutes).isAfter(windowEnd)) {
             slots.add(new TimeSlot(date, start, start.plusMinutes(durationMinutes)));
@@ -343,14 +431,7 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
 
     private List<String> buildSchedulingOrder(Map<String, Deque<Assignment>> byField) {
         List<String> order = new ArrayList<>();
-        // Fetch all filières organically from the JSON config
-        List<String> preferredFields = configService.getAllFiliereCodes();
-        
-        for (String preferred : preferredFields) {
-            if (byField.containsKey(preferred)) {
-                order.add(preferred);
-            }
-        }
+
         for (String field : byField.keySet()) {
             if (!order.contains(field)) {
                 order.add(field);
@@ -360,11 +441,11 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
     }
 
     private Soutenance tryPlaceFromFieldQueue(Deque<Assignment> queue,
-                                              int counter,
-                                              List<Professor> professorPool,
-                                              List<TimeSlot> daySlots,
-                                              List<String> salles,
-                                              List<Soutenance> planned) {
+            int counter,
+            List<Professor> professorPool,
+            List<TimeSlot> daySlots,
+            List<String> salles,
+            List<Soutenance> planned) {
         int attempts = queue.size();
         while (attempts-- > 0) {
             Assignment assignment = queue.pollFirst();
@@ -378,8 +459,7 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                     professorPool,
                     daySlots,
                     salles,
-                    planned
-            );
+                    planned);
             if (placed != null) {
                 return placed;
             }
@@ -402,7 +482,7 @@ public class PlanningGenerationServiceImpl implements PlanningGenerationService 
                 && assignment.getStudent() != null
                 && assignment.getStudent().getField() != null
                 && !assignment.getStudent().getField().isBlank()) {
-            return configService.getMappedField(assignment.getStudent().getField());
+            return assignment.getStudent().getField().trim();
         }
         return "UNKNOWN";
     }

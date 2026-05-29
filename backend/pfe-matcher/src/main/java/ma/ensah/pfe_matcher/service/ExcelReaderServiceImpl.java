@@ -12,20 +12,31 @@ import java.util.*;
 @Service
 public class ExcelReaderServiceImpl implements ExcelReaderService {
 
-    @Autowired
-    private ConfigService configService;
+// Removed ConfigService dependency
 
     @Override
     public List<Student> readStudent(MultipartFile file) throws Exception {
         List<Student> students = new ArrayList<>();
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
-            Sheet sheet = workbook.getSheetAt(0);
+            Sheet sheet = null;
+            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                if (workbook.getSheetName(i).toLowerCase().contains("etudiant") || workbook.getSheetName(i).toLowerCase().contains("étudiant")) {
+                    sheet = workbook.getSheetAt(i);
+                    break;
+                }
+            }
+            if (sheet == null) sheet = workbook.getSheetAt(1); // fallback
+
             Row header = sheet.getRow(0);
 
             Map<String, Integer> colMap = new HashMap<>();
             for (Cell cell : header) {
-                String canonical = configService.getCanonicalHeader(cell.getStringCellValue());
-                if (canonical != null) colMap.put(canonical, cell.getColumnIndex());
+                String headerName = cell.getStringCellValue().trim().toUpperCase();
+                // Simple hardcoded fallback to find the proper column dynamically without configuration file
+                if (headerName.contains("CNE") || headerName.contains("MASSAR")) colMap.put("CNE", cell.getColumnIndex());
+                else if (headerName.equals("NOM")) colMap.put("NOM", cell.getColumnIndex());
+                else if (headerName.equals("PRENOM") || headerName.equals("PRÉNOM")) colMap.put("PRENOM", cell.getColumnIndex());
+                else if (headerName.contains("FILIERE") || headerName.contains("FILIÈRE")) colMap.put("FILIERE", cell.getColumnIndex());
             }
 
             DataFormatter formatter = new DataFormatter();
@@ -33,12 +44,12 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 
-                String cne = formatter.formatCellValue(row.getCell(colMap.getOrDefault("CNE", 0))).trim();
-                String nom = formatter.formatCellValue(row.getCell(colMap.getOrDefault("NOM", 1))).trim();
-                String prenom = formatter.formatCellValue(row.getCell(colMap.getOrDefault("PRENOM", 2))).trim();
-                String field = formatter.formatCellValue(row.getCell(colMap.getOrDefault("FILIERE", 5))).trim().toUpperCase();
+                String cne = colMap.containsKey("CNE") ? formatter.formatCellValue(row.getCell(colMap.get("CNE"))).trim() : "";
+                String nom = colMap.containsKey("NOM") ? formatter.formatCellValue(row.getCell(colMap.get("NOM"))).trim() : "";
+                String prenom = colMap.containsKey("PRENOM") ? formatter.formatCellValue(row.getCell(colMap.get("PRENOM"))).trim() : "";
+                String field = colMap.containsKey("FILIERE") ? formatter.formatCellValue(row.getCell(colMap.get("FILIERE"))).trim().toUpperCase() : "UNKNOWN";
 
-                if (!cne.isEmpty()) students.add(new Student(cne, cne, nom, prenom, field));
+                if (!nom.isEmpty()) students.add(new Student(cne.isEmpty() ? UUID.randomUUID().toString() : cne, cne, nom, prenom, field));
             }
         }
         return students;
@@ -50,10 +61,19 @@ public class ExcelReaderServiceImpl implements ExcelReaderService {
         DataFormatter formatter = new DataFormatter();
         int count = 1;
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
-            Sheet sheet = workbook.getSheetAt(0);
+            Sheet sheet = null;
+            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                if (workbook.getSheetName(i).toLowerCase().contains("prof")) {
+                    sheet = workbook.getSheetAt(i);
+                    break;
+                }
+            }
+            if (sheet == null) sheet = workbook.getSheetAt(0); // fallback
+
             for (Row row : sheet) {
+                if (row.getRowNum() < 2) continue; // Skip headers (rows 0 and 1)
                 String lastname = formatter.formatCellValue(row.getCell(0)).trim();
-                if (lastname.equalsIgnoreCase("Nom") || lastname.isEmpty()) continue;
+                if (lastname.isEmpty()) continue;
                 String firstname = formatter.formatCellValue(row.getCell(1)).trim();
                 String dept = formatter.formatCellValue(row.getCell(2)).trim();
                 

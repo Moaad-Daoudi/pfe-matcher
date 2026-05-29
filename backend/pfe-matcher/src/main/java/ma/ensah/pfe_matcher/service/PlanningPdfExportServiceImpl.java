@@ -65,8 +65,8 @@ public class PlanningPdfExportServiceImpl implements PlanningPdfExportService {
                     .thenComparing(Soutenance::getSalle)
                     .thenComparing(s -> s.getAssignment().getStudent().getLastname(), String.CASE_INSENSITIVE_ORDER));
 
-            Map<String, DeviceRgb> colorByDayAndProfessor = new HashMap<>();
-            Map<String, Integer> nextPaletteByDay = new HashMap<>();
+            Map<String, DeviceRgb> colorByProfessor = new HashMap<>();
+            int nextPaletteIndex = 0;
 
             document.add(new Paragraph("Planning des soutenances PFE")
                     .setBold().setFontSize(14).setTextAlignment(TextAlignment.CENTER));
@@ -101,15 +101,28 @@ public class PlanningPdfExportServiceImpl implements PlanningPdfExportService {
                 table.addCell(new Cell()
                         .add(new Paragraph(String.valueOf(displayId++)).setFontSize(NORMAL_FONT))
                         .setTextAlignment(TextAlignment.CENTER));
-                table.addCell(coloredProfessorCell(s.getDate(), s.getEncadrant(), colorByDayAndProfessor, nextPaletteByDay));
-                table.addCell(coloredProfessorCell(s.getDate(), s.getJury1(), colorByDayAndProfessor, nextPaletteByDay));
-                table.addCell(coloredProfessorCell(s.getDate(), s.getJury2(), colorByDayAndProfessor, nextPaletteByDay));
+                table.addCell(coloredProfessorCell(s.getEncadrant(), colorByProfessor));
+                table.addCell(coloredProfessorCell(s.getJury1(), colorByProfessor));
+                table.addCell(coloredProfessorCell(s.getJury2(), colorByProfessor));
                 table.addCell(new Cell().add(new Paragraph(s.getDate().format(DATE_FORMATTER)).setFontSize(NORMAL_FONT)));
                 table.addCell(compactCell(s.getStartTime().format(TIME_FORMATTER), SMALL_FONT));
                 table.addCell(compactCell(s.getSalle(), SMALL_FONT));
-                table.addCell(new Cell().add(new Paragraph(s.getAssignment().getStudent().getLastname()).setFontSize(NORMAL_FONT)));
-                table.addCell(new Cell().add(new Paragraph(s.getAssignment().getStudent().getFirstname()).setFontSize(LARGE_FONT)));
-                table.addCell(compactCell(s.getAssignment().getStudent().getField(), SMALL_FONT));
+                
+                String nom = s.getAssignment().getStudent().getLastname();
+                String prenom = s.getAssignment().getStudent().getFirstname();
+                if (s.getAssignment().getStudent2() != null) {
+                    nom += "\n" + s.getAssignment().getStudent2().getLastname();
+                    prenom += "\n" + s.getAssignment().getStudent2().getFirstname();
+                }
+                
+                table.addCell(new Cell().add(new Paragraph(nom).setFontSize(NORMAL_FONT)));
+                table.addCell(new Cell().add(new Paragraph(prenom).setFontSize(LARGE_FONT)));
+                
+                String fieldStr = s.getAssignment().getStudent().getField();
+                if (s.getAssignment().getStudent2() != null && s.getAssignment().getStudent2().getField() != null && !s.getAssignment().getStudent2().getField().equals(fieldStr)) {
+                    fieldStr += " & " + s.getAssignment().getStudent2().getField();
+                }
+                table.addCell(compactCell(fieldStr, SMALL_FONT));
             }
 
             document.add(table);
@@ -125,27 +138,22 @@ public class PlanningPdfExportServiceImpl implements PlanningPdfExportService {
         return (last + " " + first).trim();
     }
 
-    private Cell coloredProfessorCell(LocalDate date,
-                                      Professor professor,
-                                      Map<String, DeviceRgb> colorByDayAndProfessor,
-                                      Map<String, Integer> nextPaletteByDay) {
+    private Cell coloredProfessorCell(Professor professor,
+                                      Map<String, DeviceRgb> colorByProfessor) {
         String name = fullName(professor);
         Cell cell = new Cell().add(new Paragraph(name).setFontSize(LARGE_FONT).setBold());
 
-        if (professor == null || date == null) {
+        if (professor == null) {
             return cell;
         }
 
-        String dayKey = date.toString();
         String professorKey = professorColorKey(professor);
-        String mapKey = dayKey + "|" + professorKey;
 
-        DeviceRgb color = colorByDayAndProfessor.get(mapKey);
+        DeviceRgb color = colorByProfessor.get(professorKey);
         if (color == null) {
-            int next = nextPaletteByDay.getOrDefault(dayKey, 0);
+            int next = colorByProfessor.size();
             color = PROFESSOR_COLORS[next % PROFESSOR_COLORS.length];
-            colorByDayAndProfessor.put(mapKey, color);
-            nextPaletteByDay.put(dayKey, next + 1);
+            colorByProfessor.put(professorKey, color);
         }
 
         cell.setBackgroundColor(color);

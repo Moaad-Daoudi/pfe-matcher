@@ -5,15 +5,20 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Logo from "../assets/t1.png";
 import Navbar from "../components/Navbar";
+import { Calendar, Rocket } from "lucide-react";
 
 interface Student {
   id?: string;
-  name: string;
+  name?: string;
+  firstname?: string;
+  lastname?: string;
 }
 
 interface Professor {
   id?: string;
-  name: string;
+  name?: string;
+  firstname?: string;
+  lastname?: string;
   students: Student[];
 }
 
@@ -33,12 +38,16 @@ function Home() {
   const [currentStep, setCurrentStep] = useState(1);
   const [file1, setFile1] = useState<File | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [binomePairs, setBinomePairs] = useState<Map<string, string>>(new Map());
+  const [binomesList, setBinomesList] = useState<Array<[string, string]>>([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("18:00");
+  // Time overrides — empty string means "use server default from application.properties"
+  const [morningStart, setMorningStart] = useState("");
+  const [morningEnd, setMorningEnd] = useState("");
+  const [afternoonStart, setAfternoonStart] = useState("");
+  const [afternoonEnd, setAfternoonEnd] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rawAffectation, setRawAffectation] = useState<any>(null);
   const navigate = useNavigate();
 
   // Step 1: Process CSV import
@@ -51,8 +60,7 @@ function Home() {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append("studentFile", file1);
-      formData.append("profFile", file1);
+      formData.append("file", file1);
 
       const affectationRes = await axios.post(`${API_BASE}/api/affectations/process`, formData);
 
@@ -60,7 +68,24 @@ function Home() {
         throw new Error("Le backend n'a retourné aucune affectation.");
       }
 
-      setAssignments(affectationRes.data.assignments);
+      setRawAffectation(affectationRes.data);
+
+      // Group backend strictly flat 'Assignment' { student: {...}, professor: {...} } into frontend UI array structure
+      const rawAssignments: any[] = affectationRes.data.assignments;
+      const groupedMap = new Map<string, Assignment>();
+
+      rawAssignments.forEach((item) => {
+        const profId = item.professor?.id || item.professor?.name;
+        if (!groupedMap.has(profId)) {
+          groupedMap.set(profId, {
+            professor: item.professor,
+            students: []
+          });
+        }
+        groupedMap.get(profId)!.students.push(item.student);
+      });
+
+      setAssignments(Array.from(groupedMap.values()));
       setCurrentStep(2);
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message;
@@ -70,29 +95,49 @@ function Home() {
     }
   };
 
-  // Step 2: Add binome pair
-  const addBinomePair = (student1Id: string, student2Id: string) => {
-    if (student1Id && student2Id && student1Id !== student2Id) {
-      const newPairs = new Map(binomePairs);
-      newPairs.set(student1Id, student2Id);
-      newPairs.set(student2Id, student1Id);
-      setBinomePairs(newPairs);
-    }
+  // Step 2: Manage binomes
+  const addEmptyBinome = () => {
+    setBinomesList([...binomesList, ["", ""]]);
   };
 
-  // Step 2: Remove binome pair
-  const removeBinomePair = (studentId: string) => {
-    const newPairs = new Map(binomePairs);
-    const paired = newPairs.get(studentId);
-    if (paired) {
-      newPairs.delete(studentId);
-      newPairs.delete(paired);
-      setBinomePairs(newPairs);
-    }
+  const removeBinome = (index: number) => {
+    const newList = [...binomesList];
+    newList.splice(index, 1);
+    setBinomesList(newList);
+  };
+
+  const updateBinome = (index: number, pos: 0 | 1, value: string) => {
+    const newList = [...binomesList];
+    newList[index][pos] = value;
+    setBinomesList(newList);
+  };
+
+  const getStudentName = (s: Student) => {
+    return s.name || [s.firstname, s.lastname].filter(Boolean).join(" ") || "Sans nom";
+  };
+
+  const getProfFullName = (p: Professor) => {
+    return p.name || [p.firstname, p.lastname].filter(Boolean).join(" ") || "Inconnu";
+  };
+
+  const getAllStudents = () => {
+    return assignments.flatMap(a => a.students).sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
+  };
+
+  const getAvailableStudents = (currentValue: string) => {
+    const usedIds = new Set(binomesList.flat().filter(id => id !== ""));
+    return getAllStudents().filter(s => s.id === currentValue || !usedIds.has(s.id || ""));
+  };
+
+  const getProfName = (studentId?: string) => {
+    const a = assignments.find(assign => assign.students.some(s => s.id === studentId));
+    return a ? getProfFullName(a.professor) : "";
   };
 
   // Move to step 3
   const goToDateConfiguration = () => {
+    // Clean up empty binomes
+    setBinomesList(binomesList.filter(b => b[0] !== "" && b[1] !== ""));
     setCurrentStep(3);
   };
 
@@ -108,15 +153,18 @@ function Home() {
       const planningPayload = {
         startDate: startDate,
         endDate: endDate,
-        startTime: startTime,
-        endTime: endTime,
-        binomes: Array.from(binomePairs.entries())
+        binomes: binomesList.filter(b => b[0] !== "" && b[1] !== ""),
+        // Only send when the user changed the value; empty string = use server default
+        morningStart:   morningStart   || undefined,
+        morningEnd:     morningEnd     || undefined,
+        afternoonStart: afternoonStart || undefined,
+        afternoonEnd:   afternoonEnd   || undefined,
       };
       const planningRes = await axios.post(`${API_BASE}/api/soutenances/generate`, planningPayload);
 
       navigate("/planing", {
         state: {
-          affectation: { assignments },
+          affectation: rawAffectation,
           planning: planningRes.data
         }
       });
@@ -197,89 +245,72 @@ function Home() {
           </div>
         )}
 
-        {/* Step 2: View & Manage Assignments */}
+        {/* Step 2: Manage Binomes */}
         {currentStep === 2 && (
           <div>
             <div className="mb-5 text-center">
-              <h3 className="text-white fw-bold mb-2">👥 Gérer les Affectations</h3>
-              <p className="text-muted">Vérifiez et créez des binômes si nécessaire</p>
+              <h3 className="text-white fw-bold mb-2">👥 Gérer les Binômes (Optionnel)</h3>
+              <p className="text-muted">Créez des binômes d'étudiants si nécessaire.</p>
             </div>
 
-            {assignments.map((assignment, idx) => (
-              <div key={idx} className="card custom-card shadow-lg mb-4">
-                <div className="card-body p-4">
-                  <div className="d-flex align-items-center mb-4">
-                    <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white"
-                         style={{ width: "44px", height: "44px", background: "linear-gradient(135deg, #00c6ff, #54a659)" }}>
-                      👨‍🏫
-                    </div>
-                    <div className="ms-3">
-                      <h6 className="text-light mb-0 fw-600">{assignment.professor.name}</h6>
-                      <small className="text-muted">{assignment.students.length} étudiant(s)</small>
-                    </div>
-                  </div>
-
-                  <div className="table-responsive">
-                    <table className="table table-dark mb-0">
-                      <thead>
-                        <tr>
-                          <th className="text-success fw-600">👤 Étudiant</th>
-                          <th className="text-success fw-600">🤝 Binôme</th>
-                          <th className="text-success fw-600">⚙️ Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {assignment.students.map((student, sidx) => (
-                          <tr key={sidx}>
-                            <td>
-                              <span className="text-light fw-500">{student.name}</span>
-                            </td>
-                            <td>
-                              {binomePairs.get(student.id || "") ? (
-                                <span className="badge bg-info">
-                                  {assignment.students.find(s => s.id === binomePairs.get(student.id || ""))?.name || "N/A"}
-                                </span>
-                              ) : (
-                                <select
-                                  className="form-select form-select-sm bg-dark text-light border-secondary"
-                                  onChange={(e) => {
-                                    if (e.target.value) {
-                                      addBinomePair(student.id || "", e.target.value);
-                                      e.target.value = "";
-                                    }
-                                  }}
-                                  defaultValue=""
-                                >
-                                  <option value="">-- Sélectionner --</option>
-                                  {assignment.students
-                                    .filter((s) => s.id !== student.id && !binomePairs.has(s.id || ""))
-                                    .map((s, i) => (
-                                      <option key={i} value={s.id || ""}>
-                                        {s.name}
-                                      </option>
-                                    ))}
-                                </select>
-                              )}
-                            </td>
-                            <td>
-                              {binomePairs.get(student.id || "") && (
-                                <button
-                                  className="btn btn-sm btn-outline-danger"
-                                  onClick={() => removeBinomePair(student.id || "")}
-                                  style={{ fontSize: "12px" }}
-                                >
-                                  ✕ Supprimer
-                                </button>
-                              )}
-                            </td>
-                          </tr>
+            <div className="card custom-card shadow-lg mb-4">
+              <div className="card-body p-5">
+                {binomesList.map((pair, index) => (
+                  <div key={index} className="row g-3 align-items-center mb-3">
+                    <div className="col-md-5">
+                      <select 
+                        className="form-select bg-dark text-light border-secondary"
+                        value={pair[0]}
+                        onChange={(e) => updateBinome(index, 0, e.target.value)}
+                      >
+                        <option value="">-- Étudiant 1 --</option>
+                        {getAvailableStudents(pair[0]).map(s => (
+                          <option key={s.id} value={s.id || ""}>{getStudentName(s)} ({getProfName(s.id)})</option>
                         ))}
-                      </tbody>
-                    </table>
+                      </select>
+                    </div>
+                    <div className="col-md-1 text-center text-white fw-bold">
+                      &
+                    </div>
+                    <div className="col-md-5">
+                      <select 
+                        className="form-select bg-dark text-light border-secondary"
+                        value={pair[1]}
+                        onChange={(e) => updateBinome(index, 1, e.target.value)}
+                      >
+                        <option value="">-- Étudiant 2 --</option>
+                        {getAvailableStudents(pair[1]).map(s => (
+                          <option key={s.id} value={s.id || ""}>{getStudentName(s)} ({getProfName(s.id)})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-1">
+                      <button 
+                        className="btn btn-outline-danger w-100"
+                        onClick={() => removeBinome(index)}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
+                ))}
+
+                {binomesList.length === 0 && (
+                  <p className="text-center text-muted my-3">
+                    Aucun binôme créé. Chaque étudiant passera sa soutenance individuellement.
+                  </p>
+                )}
+
+                <div className="text-center mt-4">
+                  <button 
+                    className="btn btn-outline-success px-4 py-2 fw-600"
+                    onClick={addEmptyBinome}
+                  >
+                    + Ajouter un binôme
+                  </button>
                 </div>
               </div>
-            ))}
+            </div>
 
             <div className="mt-5 text-center">
               <button
@@ -306,7 +337,9 @@ function Home() {
 
                   <div className="row g-4">
                     <div className="col-md-6">
-                      <label className="form-label fw-600 text-light">📅 Date Début</label>
+                      <label className="form-label fw-600 text-light d-flex align-items-center gap-2">
+                        <Calendar size={18} /> Date Début
+                      </label>
                       <input
                         type="date"
                         className="form-control"
@@ -316,7 +349,9 @@ function Home() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label fw-600 text-light">📅 Date Fin</label>
+                      <label className="form-label fw-600 text-light d-flex align-items-center gap-2">
+                        <Calendar size={18} /> Date Fin
+                      </label>
                       <input
                         type="date"
                         className="form-control"
@@ -325,25 +360,55 @@ function Home() {
                         onChange={(e) => setEndDate(e.target.value)}
                       />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label fw-600 text-light">🕐 Heure Début</label>
-                      <input
-                        type="time"
-                        className="form-control"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                      />
-                      <small className="text-muted d-block mt-2">Par défaut: 09:00</small>
+
+                    {/* Morning window */}
+                    <div className="col-12">
+                      <p className="text-muted small mb-2 fw-600">🌅 Créneau Matin <span className="text-secondary fw-normal">(défaut: 09:00 – 12:00)</span></p>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label fw-600 text-light">🕐 Heure Fin</label>
+                      <label className="form-label fw-600 text-light">Début Matin</label>
                       <input
                         type="time"
                         className="form-control"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
+                        placeholder="09:00"
+                        value={morningStart}
+                        onChange={(e) => setMorningStart(e.target.value)}
                       />
-                      <small className="text-muted d-block mt-2">Par défaut: 18:00</small>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-600 text-light">Fin Matin</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        placeholder="12:00"
+                        value={morningEnd}
+                        onChange={(e) => setMorningEnd(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Afternoon window */}
+                    <div className="col-12">
+                      <p className="text-muted small mb-2 fw-600">🌇 Créneau Après-midi <span className="text-secondary fw-normal">(défaut: 14:00 – 18:00)</span></p>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-600 text-light">Début Après-midi</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        placeholder="14:00"
+                        value={afternoonStart}
+                        onChange={(e) => setAfternoonStart(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-600 text-light">Fin Après-midi</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        placeholder="18:00"
+                        value={afternoonEnd}
+                        onChange={(e) => setAfternoonEnd(e.target.value)}
+                      />
                     </div>
                   </div>
 
@@ -381,15 +446,21 @@ function Home() {
                       </div>
                       <div className="col-md-6">
                         <p className="text-muted small mb-1">🤝 Binômes Créés</p>
-                        <p className="text-light fw-600">{binomePairs.size / 2} paires</p>
+                        <p className="text-light fw-600">{binomesList.filter(b => b[0] !== "" && b[1] !== "").length} paires</p>
                       </div>
                       <div className="col-md-6">
-                        <p className="text-muted small mb-1">📅 Période</p>
+                        <p className="text-muted small mb-1 d-flex align-items-center gap-1">
+                          <Calendar size={14} /> Période
+                        </p>
                         <p className="text-light fw-600">{startDate} → {endDate}</p>
                       </div>
                       <div className="col-md-6">
-                        <p className="text-muted small mb-1">🕐 Horaires</p>
-                        <p className="text-light fw-600">{startTime} - {endTime}</p>
+                        <p className="text-muted small mb-1">🌅 Matin</p>
+                        <p className="text-light fw-600">{morningStart || "09:00"} – {morningEnd || "12:00"}</p>
+                      </div>
+                      <div className="col-md-6">
+                        <p className="text-muted small mb-1">🌇 Après-midi</p>
+                        <p className="text-light fw-600">{afternoonStart || "14:00"} – {afternoonEnd || "18:00"}</p>
                       </div>
                     </div>
                   </div>
@@ -413,7 +484,9 @@ function Home() {
                           Génération...
                         </>
                       ) : (
-                        "🚀 Générer le Planning"
+                        <div className="d-inline-flex align-items-center justify-content-center gap-2">
+                          <Rocket size={18} /> Générer le Planning
+                        </div>
                       )}
                     </button>
                   </div>

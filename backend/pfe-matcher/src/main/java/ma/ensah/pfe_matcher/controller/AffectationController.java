@@ -67,15 +67,14 @@ public class AffectationController {
 
     @PostMapping("/process")
     public ResponseEntity<AssignmentResult> processAffectation(
-            @RequestParam("studentFile") MultipartFile studentFile,
-            @RequestParam("profFile") MultipartFile profFile) {
+            @RequestParam("file") MultipartFile file) {
 
         assignmentDAO.clear();
 
         try {
             // Read Files
-            List<Student> students = readerService.readStudent(studentFile);
-            List<Professor> professors = readerService.readProfessors(profFile);
+            List<Student> students = readerService.readStudent(file);
+            List<Professor> professors = readerService.readProfessors(file);
             assignmentDAO.saveJuryProfessors(professors);
 
             // Perform Matching

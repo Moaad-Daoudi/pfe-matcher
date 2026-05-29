@@ -13,13 +13,21 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 
 import java.util.List;
 
 @Configuration
 @EnableWebMvc
 @ComponentScan(basePackages = "ma.ensah.pfe_matcher")
+@PropertySource("classpath:application.properties")
 public class AppConfig implements WebMvcConfigurer {
+
+    @Bean
+    public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
+        return new PropertySourcesPlaceholderConfigurer();
+    }
 
     // to handle MultipartFile uploads in your controller
     @Bean

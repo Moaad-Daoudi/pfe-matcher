@@ -3,6 +3,7 @@ import "../App.css";
 import { Link, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useEffect, useState } from "react";
+import { Download, Eye, Search, X } from "lucide-react";
 
 const API_BASE = "http://localhost:8080/pfe-matcher";
 
@@ -181,10 +182,10 @@ function Pages2() {
                     <div className="card-body">
                       <h6 className="card-title">{pdf.name}</h6>
                       <button
-                        className="btn btn-sm btn-primary"
+                        className="btn btn-sm btn-primary d-flex align-items-center gap-1"
                         onClick={() => viewPdf(pdf.url)}
                       >
-                        <i className="bi bi-eye"></i> Voir le PDF
+                        <Eye size={16} /> Voir le PDF
                       </button>
                     </div>
                   </div>
@@ -222,7 +223,7 @@ function Pages2() {
                 }}
                 style={{ backgroundColor: "#54a659", borderColor: "#6fcf7f", fontWeight: "600" }}
               >
-                <span>{showSearch ? "❌" : "🔍"}</span>
+                {showSearch ? <X size={16} /> : <Search size={16} />}
                 <span>{showSearch ? "Fermer" : "Rechercher"}</span>
               </button>
             </div>
@@ -258,13 +259,13 @@ function Pages2() {
                       {pvFiles.length > 0 ? (
                         <ul className="list-group">
                           {pvFiles.map((pvFile) => (
-                            <li key={pvFile} className="list-group-item d-flex justify-content-between align-items-center">
+                           <li key={pvFile} className="list-group-item d-flex justify-content-between align-items-center">
                               <span>{pvFile}</span>
                               <button
-                                className="btn btn-sm btn-success"
+                                className="btn btn-sm btn-success d-flex align-items-center gap-1"
                                 onClick={() => downloadPv(profName, pvFile)}
                               >
-                                <i className="bi bi-download"></i> Telecharger
+                                <Download size={16} /> Telecharger
                               </button>
                             </li>
                           ))}

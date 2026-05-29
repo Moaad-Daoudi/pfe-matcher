@@ -20,8 +20,7 @@ public class MatchingEngineServiceImpl implements MatchingEngineService {
     @Autowired
     private AssignmentDAO storageDAO;
 
-    @Autowired 
-    private ConfigService configService;
+// Removed ConfigService dependency
 
     // Define allowed departments here (or load from application.properties)
 //     private static final Set<String> ALLOWED_DEPARTMENTS = new HashSet<>(
@@ -30,12 +29,8 @@ public class MatchingEngineServiceImpl implements MatchingEngineService {
 
     @Override
     public List<Assignment> assignStudentsToProfs(List<Student> students, List<Professor> professors) {
-        List<String> allowedDepts = configService.getAllowedDepartments();
-
-        List<Professor> validProfessors = professors.stream()
-                .filter(p -> allowedDepts.stream()
-                        .anyMatch(d -> p.getDepartment().toUpperCase().contains(d.toUpperCase())))
-                .collect(Collectors.toList());
+        
+        List<Professor> validProfessors = professors;
 
         if (validProfessors.isEmpty()) throw new RuntimeException("Aucun professeur trouvé.");
 
