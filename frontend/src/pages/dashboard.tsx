@@ -64,7 +64,7 @@ function PieChart({ data, label = "Étudiants" }: { data: Record<string, number>
   ];
 
   let cumulativePercent = 0;
-  const gradientParts = Object.entries(data).map(([name, count], index) => {
+  const gradientParts = Object.entries(data).map(([, count], index) => {
     const percent = (count / total) * 100;
     const start = cumulativePercent;
     const end = cumulativePercent + percent;
@@ -238,7 +238,6 @@ function Dashboard() {
   const maxDefensesPerProf = Math.max(1, ...Object.values(defensesPerProf));
 
   const totalStudents = assignments.length;
-  const totalViolations = Number(planning.stats?.totalViolations ?? 0);
   const totalSpecialties = Object.keys(fieldStats).length;
   const totalProfessors = Object.keys(studentsPerProf).length;
   const maxStudentsPerProf = Math.max(1, ...Object.values(studentsPerProf));
