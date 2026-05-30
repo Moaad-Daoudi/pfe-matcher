@@ -141,6 +141,19 @@ function Home() {
     setCurrentStep(3);
   };
 
+  // Move to step 4 (Review)
+  const goToReviewAndGenerate = () => {
+    if (!startDate || !endDate) {
+      alert("Veuillez sélectionner les dates de début et de fin.");
+      return;
+    }
+    if (new Date(startDate) > new Date(endDate)) {
+        alert("La date de fin doit être après la date de début.");
+        return;
+    }
+    setCurrentStep(4);
+  };
+
   // Step 4: Final import and generate planning
   const handleFinalImport = async () => {
     if (!startDate || !endDate) {
@@ -415,7 +428,7 @@ function Home() {
                   <div className="mt-5 text-center">
                     <button
                       className="btn custom-btn px-5 py-3 fw-600"
-                      onClick={() => setCurrentStep(4)}
+                      onClick={goToReviewAndGenerate}
                       style={{ minWidth: "250px", fontSize: "1rem" }}
                     >
                       ➜ Vérifier & Générer
